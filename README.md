@@ -3,9 +3,13 @@
 This project implements several extension features to the
 very good [Mini redis](https://github.com/tokio-rs/mini-redis) project.
 
-## Running
+## Next steps
 
-...
+- Implement
+- Implement AOF (append to end of file)
+- Offer 2 AOF strategy:
+  - write + fsync every command
+  - write + fsync every command
 
 ## Supported commands
 
