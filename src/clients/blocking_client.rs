@@ -62,7 +62,7 @@ impl BlockingClient {
     /// ```no_run
     /// use mini_redis::clients::BlockingClient;
     ///
-    /// fn main() {
+    /// {
     ///     let client = match BlockingClient::connect("localhost:6379") {
     ///         Ok(client) => client,
     ///         Err(_) => panic!("failed to establish connection"),
@@ -91,7 +91,7 @@ impl BlockingClient {
     /// ```no_run
     /// use mini_redis::clients::BlockingClient;
     ///
-    /// fn main() {
+    /// {
     ///     let mut client = BlockingClient::connect("localhost:6379").unwrap();
     ///
     ///     let val = client.get("foo").unwrap();
@@ -117,7 +117,7 @@ impl BlockingClient {
     /// ```no_run
     /// use mini_redis::clients::BlockingClient;
     ///
-    /// fn main() {
+    /// {
     ///     let mut client = BlockingClient::connect("localhost:6379").unwrap();
     ///
     ///     client.set("foo", "bar".into()).unwrap();
@@ -153,7 +153,7 @@ impl BlockingClient {
     /// use std::thread;
     /// use std::time::Duration;
     ///
-    /// fn main() {
+    /// {
     ///     let ttl = Duration::from_millis(500);
     ///     let mut client = BlockingClient::connect("localhost:6379").unwrap();
     ///
@@ -193,7 +193,7 @@ impl BlockingClient {
     /// ```no_run
     /// use mini_redis::clients::BlockingClient;
     ///
-    /// fn main() {
+    /// {
     ///     let mut client = BlockingClient::connect("localhost:6379").unwrap();
     ///
     ///     let val = client.publish("foo", "bar".into()).unwrap();
