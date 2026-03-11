@@ -2,7 +2,7 @@
 //!
 //! Provides an async connect and methods for issuing the supported commands.
 
-use crate::cmd::{Get, Ping, Publish, Set, Subscribe, Unsubscribe};
+use crate::cmd::{Del, Get, Ping, Publish, Set, Subscribe, Unsubscribe};
 use crate::{Connection, Frame};
 
 use async_stream::try_stream;
@@ -266,6 +266,70 @@ impl Client {
         // responds simply with `OK`. Any other response indicates an error.
         match self.read_response().await? {
             Frame::Simple(response) if response == "OK" => Ok(()),
+            frame => Err(frame.to_error()),
+        }
+    }
+
+    /// Delete the key-value pair.
+    ///
+    /// true is returned if the value was present, false otherwise
+    ///
+    /// # Examples
+    ///
+    /// Demonstrates basic usage.
+    ///
+    /// ```no_run
+    /// use mini_redis::clients::Client;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let mut client = Client::connect("localhost:6379").await.unwrap();
+    ///
+    ///     let val = client.delete("foo").await.unwrap();
+    ///     println!("Key was removed: {:?}", val);
+    /// }
+    /// ```
+    #[instrument(skip(self))]
+    pub async fn delete(&mut self, key: String) -> crate::Result<bool> {
+        Ok(self.deletes(&[key.to_string()]).await? == 1)
+    }
+
+    /// Delete the key-value pair(s).
+    ///
+    /// Return the number of key that were removed.
+    ///
+    /// # Examples
+    ///
+    /// Demonstrates basic usage.
+    ///
+    /// ```no_run
+    /// use mini_redis::clients::Client;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let mut client = Client::connect("localhost:6379").await.unwrap();
+    ///
+    ///     let to_remove = vec!["foo1", "foo2"];
+    ///
+    ///     let removed = client.deletes("foo").await.unwrap();
+    ///     println!("Number of key removed: {:?}", removed);
+    /// }
+    /// ```
+    #[instrument(skip(self))]
+    pub async fn deletes(&mut self, keys: &[String]) -> crate::Result<usize> {
+        let frame = Del::new(keys).into_frame();
+
+        debug!(request = ?frame);
+
+        // Write the frame to the socket. This writes the full frame to the
+        // socket, waiting if necessary.
+        self.connection.write_frame(&frame).await?;
+
+        // Wait for the response from the server
+        //
+        // Only Integer frame is accepting, telling how many keys were removed
+        match self.read_response().await? {
+            Frame::Integer(removed) => Ok(removed as usize),
             frame => Err(frame.to_error()),
         }
     }

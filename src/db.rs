@@ -218,6 +218,32 @@ impl Db {
         }
     }
 
+    /// Returns the removed key associated value
+    ///
+    /// Remove the value associated with the key along with the optional
+    /// expiration Duration
+    pub(crate) fn remove(&self, key: String) -> Option<Bytes> {
+        let mut state = self.shared.state.lock().unwrap();
+        let mut value = None;
+
+        if let Some(entry) = state.entries.remove(&key) {
+            let Entry { data, expires_at } = entry;
+            value = Some(data);
+            if let Some(when) = expires_at {
+                state.expirations.remove(&(when, key));
+            }
+        }
+
+        drop(state);
+
+        // No need to notify the background task, either:
+        //   - The removed key was next, resulting in the same behavior whether
+        //     we notify now or wait for the expire call.
+        //   - No expiration duration or further down the list. In this scenario,
+        //     calling the background task is a waste of time.
+        value
+    }
+
     /// Returns a `Receiver` for the requested channel.
     ///
     /// The returned `Receiver` is used to receive values broadcast by `PUBLISH`

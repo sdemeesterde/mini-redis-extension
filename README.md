@@ -10,6 +10,8 @@ very good [Mini redis](https://github.com/tokio-rs/mini-redis) project.
 - Offer 2 AOF strategy:
   - write + fsync every command
   - write + fsync every command
+- ? Expiration or a certain policy when memory max is reached ?
+Like LRU..
 
 ## Supported commands
 

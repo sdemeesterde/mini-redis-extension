@@ -47,6 +47,11 @@ enum Command {
         #[arg(value_parser = duration_from_ms_str)]
         expires: Option<Duration>,
     },
+    /// Del the key(s)
+    Del {
+        /// Name of the keys to remove
+        keys: Vec<String>,
+    },
     ///  Publisher to send a message to a specific channel.
     Publish {
         /// Name of channel
@@ -121,6 +126,10 @@ async fn main() -> mini_redis::Result<()> {
         } => {
             client.set_expires(&key, value, expires).await?;
             println!("OK");
+        }
+        Command::Del { keys } => {
+            let removed = client.deletes(&keys).await?;
+            println!("(integer) {removed:?}");
         }
         Command::Publish { channel, message } => {
             client.publish(&channel, message).await?;

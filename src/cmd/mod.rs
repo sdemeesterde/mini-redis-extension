@@ -1,3 +1,6 @@
+mod del;
+pub use del::Del;
+
 mod get;
 pub use get::Get;
 
@@ -23,6 +26,7 @@ use crate::{Connection, Db, Frame, Parse, ParseError, Shutdown};
 /// Methods called on `Command` are delegated to the command implementation.
 #[derive(Debug)]
 pub enum Command {
+    Del(Del),
     Get(Get),
     Publish(Publish),
     Set(Set),
@@ -57,6 +61,7 @@ impl Command {
         // Match the command name, delegating the rest of the parsing to the
         // specific command.
         let command = match &command_name[..] {
+            "del" => Command::Del(Del::parse_frames(&mut parse)?),
             "get" => Command::Get(Get::parse_frames(&mut parse)?),
             "publish" => Command::Publish(Publish::parse_frames(&mut parse)?),
             "set" => Command::Set(Set::parse_frames(&mut parse)?),
@@ -96,6 +101,7 @@ impl Command {
         use Command::*;
 
         match self {
+            Del(cmd) => cmd.apply(db, dst).await,
             Get(cmd) => cmd.apply(db, dst).await,
             Publish(cmd) => cmd.apply(db, dst).await,
             Set(cmd) => cmd.apply(db, dst).await,
@@ -111,6 +117,7 @@ impl Command {
     /// Returns the command name
     pub(crate) fn get_name(&self) -> &str {
         match self {
+            Command::Del(_) => "del",
             Command::Get(_) => "get",
             Command::Publish(_) => "pub",
             Command::Set(_) => "set",
