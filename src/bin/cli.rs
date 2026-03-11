@@ -103,9 +103,9 @@ async fn main() -> mini_redis::Result<()> {
         Command::Get { key } => {
             if let Some(value) = client.get(&key).await? {
                 if let Ok(string) = str::from_utf8(&value) {
-                    println!("\"{}\"", string);
+                    println!("\"{string}\"");
                 } else {
-                    println!("{:?}", value);
+                    println!("{value:?}");
                 }
             } else {
                 println!("(nil)");

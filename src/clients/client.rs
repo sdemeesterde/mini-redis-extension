@@ -327,7 +327,7 @@ impl Client {
 
         // Wait for the response from the server
         //
-        // Only Integer frame is accepting, telling how many keys were removed
+        // Only Integer frame is accepted, telling how many keys were removed
         match self.read_response().await? {
             Frame::Integer(removed) => Ok(removed as usize),
             frame => Err(frame.to_error()),
