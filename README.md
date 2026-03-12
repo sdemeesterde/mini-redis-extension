@@ -12,6 +12,18 @@ very good [Mini redis](https://github.com/tokio-rs/mini-redis) project.
 - ? Expiration or a certain policy when memory max is reached ?
 Like LRU..
 
+## Explanation on redis protocol
+
+Terminal 1 (without using the cli):
+```
+  printf '*3\r\n+set\r\n+foo\r\n+bar\r\n' | nc localhost 6379
+```
+Terminal 2 (using the cli):
+```
+cargo run --bin mini-redis-cli get foo
+"bar"
+```
+
 ## Supported commands
 
 * [PING](https://redis.io/commands/ping)
