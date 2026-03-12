@@ -26,16 +26,19 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Command {
+    #[command(alias = "Ping", alias = "PING")]
     Ping {
         /// Message to ping
         msg: Option<Bytes>,
     },
     /// Get the value of key.
+    #[command(alias = "Get", alias = "GET")]
     Get {
         /// Name of key to get
         key: String,
     },
     /// Set key to hold the string value.
+    #[command(alias = "Set", alias = "SET")]
     Set {
         /// Name of key to set
         key: String,
@@ -48,11 +51,13 @@ enum Command {
         expires: Option<Duration>,
     },
     /// Del the key(s)
+    #[command(alias = "Del", alias = "DEL")]
     Del {
         /// Name of the keys to remove
         keys: Vec<String>,
     },
     ///  Publisher to send a message to a specific channel.
+    #[command(alias = "Publish", alias = "PUBLISH")]
     Publish {
         /// Name of channel
         channel: String,
@@ -61,6 +66,7 @@ enum Command {
         message: Bytes,
     },
     /// Subscribe a client to a specific channel or channels.
+    #[command(alias = "Subscribe", alias = "SUBSCRIBE")]
     Subscribe {
         /// Specific channel or channels
         channels: Vec<String>,
