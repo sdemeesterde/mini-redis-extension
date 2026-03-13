@@ -39,6 +39,55 @@ async fn key_value_get_set() {
     assert_eq!(b"world", &value[..])
 }
 
+/// A delete test with single delete. Try to delete an existing and non
+/// existing key
+#[tokio::test]
+async fn single_delete() {
+    let (addr, _) = start_server().await;
+
+    let mut client = Client::connect(addr).await.unwrap();
+    client.set("foo", "bar".into()).await.unwrap();
+
+    let is_present = client.delete("foo").await.unwrap();
+    assert!(is_present);
+
+    let is_not_present = client.delete("unknown_key").await.unwrap();
+    assert!(!is_not_present);
+}
+
+/// A delete test for several deletes:
+/// - Two existing keys
+/// - One existing, one none existing key
+/// - Two no existing keys
+#[tokio::test]
+async fn several_deletes() {
+    let (addr, _) = start_server().await;
+
+    let mut client = Client::connect(addr).await.unwrap();
+    client.set("foo1", "bar1".into()).await.unwrap();
+    client.set("foo2", "bar2".into()).await.unwrap();
+
+    let cnt = client
+        .deletes(&[String::from("foo1"), String::from("foo2")])
+        .await
+        .unwrap();
+    assert_eq!(2, cnt);
+
+    client.set("foo1", "bar1".into()).await.unwrap();
+
+    let cnt = client
+        .deletes(&[String::from("foo1"), String::from("foo2")])
+        .await
+        .unwrap();
+    assert_eq!(1, cnt);
+
+    let cnt = client
+        .deletes(&[String::from("foo1"), String::from("foo2")])
+        .await
+        .unwrap();
+    assert_eq!(0, cnt);
+}
+
 /// similar to the "hello world" style test, But this time
 /// a single channel subscription will be tested instead
 #[tokio::test]
