@@ -3,7 +3,7 @@
 //! Provides an async `run` function that listens for inbound connections,
 //! spawning a task per connection.
 
-use crate::{Command, Connection, Db, DbDropGuard, Shutdown};
+use crate::{Aof, AofWriter, Command, Connection, Db, DbDropGuard, Shutdown};
 
 use std::future::Future;
 use std::sync::Arc;
@@ -24,6 +24,9 @@ struct Listener {
     /// This holds a wrapper around an `Arc`. The internal `Db` can be
     /// retrieved and passed into the per connection state (`Handler`).
     db_holder: DbDropGuard,
+
+    /// Append-Only-File persistent strategy.
+    aof_writer: AofWriter,
 
     /// TCP listener supplied by the `run` caller.
     listener: TcpListener,
@@ -83,6 +86,12 @@ struct Handler {
     /// the byte level protocol parsing details encapsulated in `Connection`.
     connection: Connection,
 
+    /// Append-Only-File writer (sender side)
+    ///
+    /// Every write command received by the connection is written to the aof
+    /// buffer.
+    aof_writer: AofWriter,
+
     /// Listen for shutdown notifications.
     ///
     /// A wrapper around the `broadcast::Receiver` paired with the sender in
@@ -111,6 +120,8 @@ struct Handler {
 /// well).
 const MAX_CONNECTIONS: usize = 250;
 
+const AOF_FILENAME: &str = "appendonly.aof";
+
 /// Run the mini-redis server.
 ///
 /// Accepts connections from the supplied listener. For each inbound connection,
@@ -129,14 +140,19 @@ pub async fn run(listener: TcpListener, shutdown: impl Future) {
     let (notify_shutdown, _) = broadcast::channel(1);
     let (shutdown_complete_tx, mut shutdown_complete_rx) = mpsc::channel(1);
 
+    let mut aof = Aof::new(AOF_FILENAME.to_string()).await.unwrap();
+
     // Initialize the listener state
     let mut server = Listener {
         listener,
         db_holder: DbDropGuard::new(),
         limit_connections: Arc::new(Semaphore::new(MAX_CONNECTIONS)),
+        aof_writer: AofWriter::new(&aof),
         notify_shutdown,
         shutdown_complete_tx,
     };
+
+    tokio::spawn(async move { aof.run().await });
 
     // Concurrently run the server and listen for the `shutdown` signal. The
     // server task runs until an error is encountered, so under normal
@@ -168,7 +184,7 @@ pub async fn run(listener: TcpListener, shutdown: impl Future) {
             if let Err(err) = res {
                 error!(cause = %err, "failed to accept");
             }
-        }
+        },
         _ = shutdown => {
             // The shutdown signal has been received.
             info!("shutting down");
@@ -247,6 +263,9 @@ impl Listener {
                 // buffers to perform redis protocol frame parsing.
                 connection: Connection::new(socket),
 
+                // Sender end for the aof buffer
+                aof_writer: AofWriter::fork(&self.aof_writer),
+
                 // Receive shutdown notifications.
                 shutdown: Shutdown::new(self.notify_shutdown.subscribe()),
 
@@ -266,6 +285,7 @@ impl Listener {
                 // This returns the permit back to the semaphore.
                 drop(permit);
             });
+            info!("New connection was established");
         }
     }
 
@@ -342,7 +362,7 @@ impl Handler {
             // Convert the redis frame into a command struct. This returns an
             // error if the frame is not a valid redis command or it is an
             // unsupported command.
-            let cmd = Command::from_frame(frame)?;
+            let cmd = Command::from_frame(frame.clone())?;
 
             // Logs the `cmd` object. The syntax here is a shorthand provided by
             // the `tracing` crate. It can be thought of as similar to:
@@ -354,6 +374,14 @@ impl Handler {
             // `tracing` provides structured logging, so information is "logged"
             // as key-value pairs.
             debug!(?cmd);
+
+            // If the command modifies the db, write the frames to
+            // Append-Only-File buffer
+            if cmd.is_write_command() {
+                info!("is write command");
+                let resp_frame = frame.encode_resp()?;
+                self.aof_writer.write_to_buffer(resp_frame).await?;
+            }
 
             // Perform the work needed to apply the command. This may mutate the
             // database state as a result.

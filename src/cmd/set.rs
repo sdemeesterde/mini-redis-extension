@@ -132,7 +132,8 @@ impl Set {
         // Create a success response and write it to `dst`.
         let response = Frame::Simple("OK".to_string());
         debug!(?response);
-        dst.write_frame(&response).await?;
+        let resp_frame = response.encode_resp()?;
+        dst.write_frame(resp_frame).await?;
 
         Ok(())
     }

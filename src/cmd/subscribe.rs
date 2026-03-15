@@ -130,7 +130,9 @@ impl Subscribe {
             select! {
                 // Receive messages from subscribed channels
                 Some((channel_name, msg)) = subscriptions.next() => {
-                    dst.write_frame(&make_message_frame(channel_name, msg)).await?;
+                    let frame = make_message_frame(channel_name, msg);
+                    let resp_frame = frame.encode_resp()?;
+                    dst.write_frame(resp_frame).await?;
                 }
                 res = dst.read_frame() => {
                     let frame = match res? {
@@ -191,8 +193,9 @@ async fn subscribe_to_channel(
     subscriptions.insert(channel_name.clone(), rx);
 
     // Respond with the successful subscription
-    let response = make_subscribe_frame(channel_name, subscriptions.len());
-    dst.write_frame(&response).await?;
+    let frame = make_subscribe_frame(channel_name, subscriptions.len());
+    let resp_frame = frame.encode_resp()?;
+    dst.write_frame(resp_frame).await?;
 
     Ok(())
 }
@@ -234,7 +237,8 @@ async fn handle_command(
                 subscriptions.remove(&channel_name);
 
                 let response = make_unsubscribe_frame(channel_name, subscriptions.len());
-                dst.write_frame(&response).await?;
+                let resp_frame = response.encode_resp()?;
+                dst.write_frame(resp_frame).await?;
             }
         }
         command => {

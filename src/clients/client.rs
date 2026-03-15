@@ -113,7 +113,8 @@ impl Client {
     pub async fn ping(&mut self, msg: Option<Bytes>) -> crate::Result<Bytes> {
         let frame = Ping::new(msg).into_frame();
         debug!(request = ?frame);
-        self.connection.write_frame(&frame).await?;
+        let resp_frame = frame.encode_resp()?;
+        self.connection.write_frame(resp_frame).await?;
 
         match self.read_response().await? {
             Frame::Simple(value) => Ok(value.into()),
@@ -150,7 +151,8 @@ impl Client {
 
         // Write the frame to the socket. This writes the full frame to the
         // socket, waiting if necessary.
-        self.connection.write_frame(&frame).await?;
+        let resp_frame = frame.encode_resp()?;
+        self.connection.write_frame(resp_frame).await?;
 
         // Wait for the response from the server
         //
@@ -260,7 +262,8 @@ impl Client {
 
         // Write the frame to the socket. This writes the full frame to the
         // socket, waiting if necessary.
-        self.connection.write_frame(&frame).await?;
+        let resp_frame = frame.encode_resp()?;
+        self.connection.write_frame(resp_frame).await?;
 
         // Wait for the response from the server. On success, the server
         // responds simply with `OK`. Any other response indicates an error.
@@ -323,7 +326,8 @@ impl Client {
 
         // Write the frame to the socket. This writes the full frame to the
         // socket, waiting if necessary.
-        self.connection.write_frame(&frame).await?;
+        let resp_frame = frame.encode_resp()?;
+        self.connection.write_frame(resp_frame).await?;
 
         // Wait for the response from the server
         //
@@ -363,7 +367,8 @@ impl Client {
         debug!(request = ?frame);
 
         // Write the frame to the socket
-        self.connection.write_frame(&frame).await?;
+        let resp_frame = frame.encode_resp()?;
+        self.connection.write_frame(resp_frame).await?;
 
         // Read the response
         match self.read_response().await? {
@@ -401,7 +406,8 @@ impl Client {
         debug!(request = ?frame);
 
         // Write the frame to the socket
-        self.connection.write_frame(&frame).await?;
+        let resp_frame = frame.encode_resp()?;
+        self.connection.write_frame(resp_frame).await?;
 
         // For each channel being subscribed to, the server responds with a
         // message confirming subscription to that channel.
@@ -527,7 +533,8 @@ impl Subscriber {
         debug!(request = ?frame);
 
         // Write the frame to the socket
-        self.client.connection.write_frame(&frame).await?;
+        let resp_frame = frame.encode_resp()?;
+        self.client.connection.write_frame(resp_frame).await?;
 
         // if the input channel list is empty, server acknowledges as unsubscribing
         // from all subscribed channels, so we assert that the unsubscribe list received

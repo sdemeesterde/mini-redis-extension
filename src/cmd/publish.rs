@@ -81,7 +81,8 @@ impl Publish {
         let response = Frame::Integer(num_subscribers as u64);
 
         // Write the frame to the client.
-        dst.write_frame(&response).await?;
+        let resp_frame = response.encode_resp()?;
+        dst.write_frame(resp_frame).await?;
 
         Ok(())
     }

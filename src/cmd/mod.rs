@@ -114,6 +114,11 @@ impl Command {
         }
     }
 
+    /// Returns true if the commmand modifies the db
+    pub(crate) fn is_write_command(&self) -> bool {
+        matches!(self, Command::Set(_) | Command::Del(_))
+    }
+
     /// Returns the command name
     pub(crate) fn get_name(&self) -> &str {
         match self {

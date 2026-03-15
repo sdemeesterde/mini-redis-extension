@@ -25,6 +25,9 @@
 //!   intermediate representation between a "command" and the byte
 //!   representation.
 
+pub mod aof;
+pub use aof::{Aof, AofWriter};
+
 pub mod clients;
 pub use clients::{BlockingClient, BufferedClient, Client};
 
@@ -34,12 +37,12 @@ pub use cmd::Command;
 mod connection;
 pub use connection::Connection;
 
-pub mod frame;
-pub use frame::Frame;
-
 mod db;
 use db::Db;
 use db::DbDropGuard;
+
+pub mod frame;
+pub use frame::Frame;
 
 mod parse;
 use parse::{Parse, ParseError};

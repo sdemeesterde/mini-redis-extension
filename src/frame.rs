@@ -1,7 +1,7 @@
 //! Provides a type representing a Redis protocol frame as well as utilities for
 //! parsing frames from a byte array.
 
-use bytes::{Buf, Bytes};
+use bytes::{Buf, BufMut, Bytes, BytesMut};
 use std::convert::TryInto;
 use std::fmt;
 use std::io::Cursor;
@@ -167,10 +167,83 @@ impl Frame {
         }
     }
 
+    pub fn encode_resp(&self) -> std::io::Result<Bytes> {
+        let mut buf = BytesMut::new();
+
+        match self {
+            Frame::Array(val) => {
+                // Encode the frame type prefix. For an array, it is `*`.
+                buf.put_u8(b'*');
+
+                // Encode the length of the array.
+                write_decimal(&mut buf, val.len() as u64)?;
+
+                // Iterate and encode each entry in the array.
+                for entry in &**val {
+                    entry.write_value(&mut buf)?;
+                }
+            }
+            // The frame type is a literal. Encode the value directly.
+            _ => self.write_value(&mut buf)?,
+        }
+        Ok(buf.into())
+    }
+
+    /// Write a frame literal to the buffer
+    fn write_value(&self, buf: &mut BytesMut) -> std::io::Result<()> {
+        match self {
+            Frame::Simple(val) => {
+                buf.put_u8(b'+');
+                buf.put(val.as_bytes());
+                buf.put(&b"\r\n"[..]);
+            }
+            Frame::Error(val) => {
+                buf.put_u8(b'-');
+                buf.put(val.as_bytes());
+                buf.put(&b"\r\n"[..]);
+            }
+            Frame::Integer(val) => {
+                buf.put_u8(b':');
+                write_decimal(buf, *val)?;
+            }
+            Frame::Null => {
+                buf.put(&b"$-1\r\n"[..]);
+            }
+            Frame::Bulk(val) => {
+                let len = val.len();
+
+                buf.put_u8(b'$');
+                write_decimal(buf, len as u64)?;
+                buf.put(&val[..]);
+                buf.put(&b"\r\n"[..]);
+            }
+            // Recursive array is not supported
+            Frame::Array(_val) => unreachable!(),
+        }
+
+        Ok(())
+    }
+
     /// Converts the frame to an "unexpected frame" error
     pub(crate) fn to_error(&self) -> crate::Error {
         format!("unexpected frame: {}", self).into()
     }
+}
+
+/// Write a decimal frame to the stream
+fn write_decimal(buf: &mut BytesMut, val: u64) -> std::io::Result<()> {
+    use std::io::Write;
+
+    // Convert the value to a string
+    let mut val_buf = [0u8; 20];
+    let mut val_buf = Cursor::new(&mut val_buf[..]);
+    write!(&mut val_buf, "{}", val)?;
+
+    let pos = val_buf.position() as usize;
+    buf.put(&val_buf.get_ref()[..pos]);
+    buf.put(&b"\r\n"[..]);
+
+    Ok(())
 }
 
 impl PartialEq<&str> for Frame {
