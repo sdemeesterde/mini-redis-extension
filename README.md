@@ -5,12 +5,20 @@ very good [Mini redis](https://github.com/tokio-rs/mini-redis) project.
 
 ## Next steps
 
-- Implement AOF (append to end of file)
-- Offer 2 AOF strategy:
-  - write + fsync every command
-  - write + fsync every command
-- ? Expiration or a certain policy when memory max is reached ?
-Like LRU..
+- Implement AOF (append to end of file) [IN PROGRESS]
+- Add ZSET, ZRANGE, .. command
+
+- Create a one page game:
+  - Idea:
+    - Having words falling faster and faster. Must type them to make them disappear.
+  - Motivation:
+    - Fun game
+    - Word vocabulary can be store in redis ?
+    - Ranking of players showcase redis ?
+
+- Unsure:
+  - Make a comparison with sqlite latency ?
+  - LRU expiration policy or.. when memory max is reached ?
 
 ## Explanation on redis protocol
 
