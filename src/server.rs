@@ -3,6 +3,7 @@
 //! Provides an async `run` function that listens for inbound connections,
 //! spawning a task per connection.
 
+use crate::aof::AofWriterFactory;
 use crate::{Aof, AofWriter, Command, Connection, Db, DbDropGuard, Shutdown};
 
 use std::future::Future;
@@ -26,7 +27,12 @@ struct Listener {
     db_holder: DbDropGuard,
 
     /// Append-Only-File persistent strategy.
-    aof_writer: AofWriter,
+    ///
+    /// Each connection will have its own cloned `aof_writer` to be able to
+    /// record their write operations to the AOF buffer.
+    ///
+    /// A simple call the factory fork will instantiate a clone `aof_writer`.
+    aof_writer_factory: AofWriterFactory,
 
     /// TCP listener supplied by the `run` caller.
     listener: TcpListener,
@@ -88,8 +94,9 @@ struct Handler {
 
     /// Append-Only-File writer (sender side)
     ///
-    /// Every write command received by the connection is written to the aof
-    /// buffer.
+    /// Every write command (e.g. modifies the redis database) received by the
+    /// connection is written to the aof buffer using the per connection clone
+    /// `aof_writer`.
     aof_writer: AofWriter,
 
     /// Listen for shutdown notifications.
@@ -120,6 +127,7 @@ struct Handler {
 /// well).
 const MAX_CONNECTIONS: usize = 250;
 
+/// The file to which write operations to the database are written to.
 const AOF_FILENAME: &str = "appendonly.aof";
 
 /// Run the mini-redis server.
@@ -147,11 +155,13 @@ pub async fn run(listener: TcpListener, shutdown: impl Future) {
         listener,
         db_holder: DbDropGuard::new(),
         limit_connections: Arc::new(Semaphore::new(MAX_CONNECTIONS)),
-        aof_writer: AofWriter::new(&aof),
+        aof_writer_factory: AofWriterFactory::new(&aof),
         notify_shutdown,
         shutdown_complete_tx,
     };
 
+    // Background thread responsible for writing the commands store on the buffer
+    // to the aof file.
     tokio::spawn(async move { aof.run().await });
 
     // Concurrently run the server and listen for the `shutdown` signal. The
@@ -263,8 +273,8 @@ impl Listener {
                 // buffers to perform redis protocol frame parsing.
                 connection: Connection::new(socket),
 
-                // Sender end for the aof buffer
-                aof_writer: AofWriter::fork(&self.aof_writer),
+                // Sender end clone instance giving access to the aof buffer
+                aof_writer: self.aof_writer_factory.fork(),
 
                 // Receive shutdown notifications.
                 shutdown: Shutdown::new(self.notify_shutdown.subscribe()),
@@ -375,7 +385,7 @@ impl Handler {
             // as key-value pairs.
             debug!(?cmd);
 
-            // If the command modifies the db, write the frames to
+            // If the command modifies the db, writes the frames to
             // Append-Only-File buffer
             if cmd.is_write_command() {
                 info!("is write command");

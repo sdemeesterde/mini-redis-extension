@@ -67,6 +67,7 @@ impl Del {
 
         let response = Frame::Integer(removed);
         debug!(?response);
+
         let resp_frame = response.encode_resp()?;
         dst.write_frame(resp_frame).await?;
 

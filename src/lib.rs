@@ -26,7 +26,7 @@
 //!   representation.
 
 pub mod aof;
-pub use aof::{Aof, AofWriter};
+pub use aof::{Aof, AofWriter, AofWriterFactory};
 
 pub mod clients;
 pub use clients::{BlockingClient, BufferedClient, Client};
