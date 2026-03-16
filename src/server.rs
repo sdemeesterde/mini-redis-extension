@@ -127,9 +127,6 @@ struct Handler {
 /// well).
 const MAX_CONNECTIONS: usize = 250;
 
-/// The file to which write operations to the database are written to.
-const AOF_FILENAME: &str = "appendonly.aof";
-
 /// Run the mini-redis server.
 ///
 /// Accepts connections from the supplied listener. For each inbound connection,
@@ -139,7 +136,7 @@ const AOF_FILENAME: &str = "appendonly.aof";
 ///
 /// `tokio::signal::ctrl_c()` can be used as the `shutdown` argument. This will
 /// listen for a SIGINT signal.
-pub async fn run(listener: TcpListener, shutdown: impl Future) {
+pub async fn run(listener: TcpListener, shutdown: impl Future, aof_filename: &str) {
     // When the provided `shutdown` future completes, we must send a shutdown
     // message to all active connections. We use a broadcast channel for this
     // purpose. The call below ignores the receiver of the broadcast pair, and when
@@ -148,7 +145,7 @@ pub async fn run(listener: TcpListener, shutdown: impl Future) {
     let (notify_shutdown, _) = broadcast::channel(1);
     let (shutdown_complete_tx, mut shutdown_complete_rx) = mpsc::channel(1);
 
-    let mut aof = Aof::new(AOF_FILENAME.to_string()).await.unwrap();
+    let mut aof = Aof::new(aof_filename.to_string()).await.unwrap();
 
     // Initialize the listener state
     let mut server = Listener {

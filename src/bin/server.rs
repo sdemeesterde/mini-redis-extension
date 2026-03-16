@@ -6,7 +6,7 @@
 //!
 //! The `clap` crate is used for parsing arguments.
 
-use mini_redis::{server, DEFAULT_PORT};
+use mini_redis::{server, AOF_FILENAME, DEFAULT_PORT};
 
 use clap::Parser;
 use tokio::net::TcpListener;
@@ -33,12 +33,14 @@ pub async fn main() -> mini_redis::Result<()> {
     set_up_logging()?;
 
     let cli = Cli::parse();
+
     let port = cli.port.unwrap_or(DEFAULT_PORT);
+    let aof_filename = cli.aof_filename.unwrap_or(AOF_FILENAME.to_string());
 
     // Bind a TCP listener
     let listener = TcpListener::bind(&format!("127.0.0.1:{}", port)).await?;
 
-    server::run(listener, signal::ctrl_c()).await;
+    server::run(listener, signal::ctrl_c(), &aof_filename).await;
 
     Ok(())
 }
@@ -48,6 +50,9 @@ pub async fn main() -> mini_redis::Result<()> {
 struct Cli {
     #[arg(long)]
     port: Option<u16>,
+
+    #[arg(long)]
+    aof_filename: Option<String>,
 }
 
 #[cfg(not(feature = "otel"))]
