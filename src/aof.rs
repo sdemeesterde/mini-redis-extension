@@ -110,7 +110,8 @@ impl Aof {
                         Ok(_) => buf_cursor.position() as usize,
                         // If incomplete, break to attempt reading more bytes
                         Err(Incomplete) => break,
-                        Err(e) => return Err(e.into()),
+                        // Simply ignore corrupted frames
+                        Err(_) => break,
                     }
                 };
 
