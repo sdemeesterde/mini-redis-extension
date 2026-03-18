@@ -27,11 +27,11 @@ async fn start_server() -> (SocketAddr, JoinHandle<()>) {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     let aof_filename = "appendonly_test.aof";
+    let warmup = None;
 
-    let handle =
-        tokio::spawn(
-            async move { server::run(listener, tokio::signal::ctrl_c(), aof_filename).await },
-        );
+    let handle = tokio::spawn(async move {
+        server::run(listener, tokio::signal::ctrl_c(), aof_filename, warmup).await
+    });
 
     (addr, handle)
 }

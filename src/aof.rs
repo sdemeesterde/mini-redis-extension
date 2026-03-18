@@ -1,11 +1,14 @@
+use std::io::Cursor;
 use std::time::Duration;
 use tokio::fs::OpenOptions;
 
-use bytes::Bytes;
+use bytes::{Buf, Bytes, BytesMut};
 use tokio::fs::File;
-use tokio::io::{self, AsyncWriteExt, BufWriter};
+use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader, BufWriter};
 use tokio::sync::mpsc;
 use tokio::time;
+
+use crate::{Command, Db, Frame, Shutdown};
 
 /// Represents the Append-Only-File (AOF) file.
 ///
@@ -73,11 +76,62 @@ impl Aof {
     ///
     /// It sleeps for 1 second, then writes and flushes all available frames
     /// from the AOF buffer.
-    pub(crate) async fn run(&mut self) -> Result<(), io::Error> {
+    pub(crate) async fn run(&mut self) -> Result<(), tokio::io::Error> {
         loop {
             time::sleep(Duration::from_secs(1)).await;
             self.write_to_file().await?;
         }
+    }
+
+    /// Fill in the database with redis RESP commands from `filename`
+    pub(crate) async fn warmup_db(
+        db: &Db,
+        filename: String,
+        shutdown: &mut Shutdown,
+    ) -> crate::Result<()> {
+        use crate::frame::Error::Incomplete;
+
+        let file = File::open(filename).await?;
+        let mut reader = BufReader::new(file);
+
+        let mut buf = BytesMut::with_capacity(4 * 1024);
+
+        loop {
+            // Either reader reached EOF or buf is full
+            if 0 == reader.read_buf(&mut buf).await? {
+                break;
+            }
+
+            loop {
+                let len = {
+                    let mut buf_cursor = Cursor::new(&buf[..]);
+
+                    match Frame::check(&mut buf_cursor) {
+                        Ok(_) => buf_cursor.position() as usize,
+                        // If incomplete, break to attempt reading more bytes
+                        Err(Incomplete) => break,
+                        Err(e) => return Err(e.into()),
+                    }
+                };
+
+                let mut buf_cursor = Cursor::new(&buf[..len]);
+                buf_cursor.set_position(0);
+
+                let frame = Frame::parse(&mut buf_cursor)?;
+                buf.advance(len);
+
+                let cmd = Command::from_frame(frame)?;
+
+                // Server fills its database.
+                // No need to provide a connection, hence use of None.
+                cmd.apply(db, None, shutdown).await?;
+
+                if buf.is_empty() {
+                    break;
+                }
+            }
+        }
+        Ok(())
     }
 }
 

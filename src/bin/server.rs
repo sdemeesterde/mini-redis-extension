@@ -36,11 +36,12 @@ pub async fn main() -> mini_redis::Result<()> {
 
     let port = cli.port.unwrap_or(DEFAULT_PORT);
     let aof_filename = cli.aof_filename.unwrap_or(AOF_FILENAME.to_string());
+    let warmup = cli.warmup;
 
     // Bind a TCP listener
     let listener = TcpListener::bind(&format!("127.0.0.1:{}", port)).await?;
 
-    server::run(listener, signal::ctrl_c(), &aof_filename).await;
+    server::run(listener, signal::ctrl_c(), &aof_filename, warmup).await;
 
     Ok(())
 }
@@ -53,6 +54,10 @@ struct Cli {
 
     #[arg(long)]
     aof_filename: Option<String>,
+
+    /// Load the AOF file on startup to warm the database
+    #[arg(long)]
+    warmup: Option<String>,
 }
 
 #[cfg(not(feature = "otel"))]

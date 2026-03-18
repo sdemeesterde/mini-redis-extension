@@ -136,7 +136,12 @@ const MAX_CONNECTIONS: usize = 250;
 ///
 /// `tokio::signal::ctrl_c()` can be used as the `shutdown` argument. This will
 /// listen for a SIGINT signal.
-pub async fn run(listener: TcpListener, shutdown: impl Future, aof_filename: &str) {
+pub async fn run(
+    listener: TcpListener,
+    shutdown: impl Future,
+    aof_filename: &str,
+    warmup: Option<String>,
+) {
     // When the provided `shutdown` future completes, we must send a shutdown
     // message to all active connections. We use a broadcast channel for this
     // purpose. The call below ignores the receiver of the broadcast pair, and when
@@ -147,7 +152,6 @@ pub async fn run(listener: TcpListener, shutdown: impl Future, aof_filename: &st
 
     let mut aof = Aof::new(aof_filename.to_string()).await.unwrap();
 
-    // Initialize the listener state
     let mut server = Listener {
         listener,
         db_holder: DbDropGuard::new(),
@@ -181,7 +185,7 @@ pub async fn run(listener: TcpListener, shutdown: impl Future, aof_filename: &st
     //
     // https://docs.rs/tokio/*/tokio/macro.select.html
     tokio::select! {
-        res = server.run() => {
+        res = server.run(warmup) => {
             // If an error is received here, accepting connections from the TCP
             // listener failed multiple times and the server is giving up and
             // shutting down.
@@ -237,7 +241,18 @@ impl Listener {
     /// The process is not able to detect when a transient error resolves
     /// itself. One strategy for handling this is to implement a back off
     /// strategy, which is what we do here.
-    async fn run(&mut self) -> crate::Result<()> {
+    async fn run(&mut self, warmup: Option<String>) -> crate::Result<()> {
+        // If a warmup file is provided, the database must be feed.
+        if let Some(filename) = warmup {
+            info!("Warming up redis with {filename}..");
+            Aof::warmup_db(
+                &self.db_holder.db(),
+                filename,
+                &mut Shutdown::new(self.notify_shutdown.subscribe()),
+            )
+            .await?;
+        }
+
         info!("accepting inbound connections");
 
         loop {
@@ -397,7 +412,7 @@ impl Handler {
             // command to write response frames directly to the connection. In
             // the case of pub/sub, multiple frames may be send back to the
             // peer.
-            cmd.apply(&self.db, &mut self.connection, &mut self.shutdown)
+            cmd.apply(&self.db, Some(&mut self.connection), &mut self.shutdown)
                 .await?;
         }
 

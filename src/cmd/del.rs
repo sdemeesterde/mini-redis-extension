@@ -57,7 +57,7 @@ impl Del {
     /// The response is written to `dst`. This is called by the server in order
     /// to execute a received command.
     #[instrument(skip(self, db, dst))]
-    pub(crate) async fn apply(self, db: &Db, dst: &mut Connection) -> crate::Result<()> {
+    pub(crate) async fn apply(self, db: &Db, dst: Option<&mut Connection>) -> crate::Result<()> {
         let mut removed = 0;
         for key in self.keys {
             if db.remove(key.clone()).is_some() {
@@ -65,11 +65,13 @@ impl Del {
             }
         }
 
-        let response = Frame::Integer(removed);
-        debug!(?response);
+        if let Some(dst) = dst {
+            let response = Frame::Integer(removed);
+            debug!(?response);
 
-        let resp_frame = response.encode_resp()?;
-        dst.write_frame(resp_frame).await?;
+            let resp_frame = response.encode_resp()?;
+            dst.write_frame(resp_frame).await?;
+        }
 
         Ok(())
     }

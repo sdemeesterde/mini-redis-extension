@@ -95,7 +95,7 @@ impl Command {
     pub(crate) async fn apply(
         self,
         db: &Db,
-        dst: &mut Connection,
+        dst: Option<&mut Connection>,
         shutdown: &mut Shutdown,
     ) -> crate::Result<()> {
         use Command::*;
@@ -105,9 +105,27 @@ impl Command {
             Get(cmd) => cmd.apply(db, dst).await,
             Publish(cmd) => cmd.apply(db, dst).await,
             Set(cmd) => cmd.apply(db, dst).await,
-            Subscribe(cmd) => cmd.apply(db, dst, shutdown).await,
-            Ping(cmd) => cmd.apply(dst).await,
-            Unknown(cmd) => cmd.apply(dst).await,
+            Subscribe(cmd) => {
+                if let Some(dst) = dst {
+                    cmd.apply(db, dst, shutdown).await
+                } else {
+                    Err("A connection is required to subscribe".into())
+                }
+            }
+            Ping(cmd) => {
+                if let Some(dst) = dst {
+                    cmd.apply(dst).await
+                } else {
+                    Err("A client must be provided for Ping cmd to respond to".into())
+                }
+            }
+            Unknown(cmd) => {
+                if let Some(dst) = dst {
+                    cmd.apply(dst).await
+                } else {
+                    Err("Unknown command received with no connection provided".into())
+                }
+            }
             // `Unsubscribe` cannot be applied. It may only be received from the
             // context of a `Subscribe` command.
             Unsubscribe(_) => Err("`Unsubscribe` is unsupported in this context".into()),
