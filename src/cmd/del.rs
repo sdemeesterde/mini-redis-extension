@@ -28,7 +28,7 @@ impl Del {
     ///
     /// # Returns
     ///
-    /// Returns the number of deleted value(s) on success. If the frame is malformed,
+    /// Returns the `Del` value on success. If the frame is malformed,
     /// `Err` is returned.
     ///
     /// # Format
@@ -78,7 +78,7 @@ impl Del {
 
     /// Converts the command into an equivalent `Frame`.
     ///
-    /// This is called by the client when encoding a `Get` command to send to
+    /// This is called by the client when encoding a `Del` command to send to
     /// the server.
     pub(crate) fn into_frame(self) -> Frame {
         let mut frame = Frame::array();

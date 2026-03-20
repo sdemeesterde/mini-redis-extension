@@ -167,6 +167,7 @@ impl Frame {
         }
     }
 
+    /// Get the RESP (Redis serialization protocol) format of the current frame.
     pub fn encode_resp(&self) -> std::io::Result<Bytes> {
         let mut buf = BytesMut::new();
 

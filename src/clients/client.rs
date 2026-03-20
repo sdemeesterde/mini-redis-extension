@@ -2,7 +2,7 @@
 //!
 //! Provides an async connect and methods for issuing the supported commands.
 
-use crate::cmd::{Del, Get, Ping, Publish, Set, Subscribe, Unsubscribe};
+use crate::cmd::{Del, Get, Ping, Publish, Set, Subscribe, Unsubscribe, Zadd, Zrange};
 use crate::{Connection, Frame};
 
 use async_stream::try_stream;
@@ -334,6 +334,119 @@ impl Client {
         // Only Integer frame is accepted, telling how many keys were removed
         match self.read_response().await? {
             Frame::Integer(removed) => Ok(removed as usize),
+            frame => Err(frame.to_error()),
+        }
+    }
+
+    /// Add entries (score-member) to the key associated sorted set.
+    ///
+    /// Return the number of key that were added.
+    ///
+    /// # Examples
+    ///
+    /// Demonstrates basic usage.
+    ///
+    /// ```no_run
+    /// use mini_redis::clients::Client;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let mut client = Client::connect("localhost:6379").await.unwrap();
+    ///
+    ///     let key = "key_test";
+    ///     let entries = vec![(10, String::from("player1")), (5, String::from("player2"))];
+    ///
+    ///     let added = client.zadd(key, entries).await.unwrap();
+    ///     println!("Number of entries added: {:?}", added);
+    /// }
+    /// ```
+    #[instrument(skip(self))]
+    pub async fn zadd(&mut self, key: &str, entries: Vec<(u64, String)>) -> crate::Result<usize> {
+        let frame = Zadd::new(key.to_string(), entries).into_frame();
+
+        debug!(request = ?frame);
+
+        // Write the frame to the socket. This writes the full frame to the
+        // socket, waiting if necessary.
+        let resp_frame = frame.encode_resp()?;
+        self.connection.write_frame(resp_frame).await?;
+
+        // Wait for the response from the server
+        //
+        // Only Integer frame is accepted, telling how many keys were added
+        match self.read_response().await? {
+            Frame::Integer(added) => Ok(added as usize),
+            frame => Err(frame.to_error()),
+        }
+    }
+
+    /// Get the range (score-member) where start >= score >= stop.
+    ///
+    /// Return the number of key that were added.
+    ///
+    /// # Examples
+    ///
+    /// Demonstrates basic usage.
+    ///
+    /// ```no_run
+    /// use mini_redis::clients::Client;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let mut client = Client::connect("localhost:6379").await.unwrap();
+    ///
+    ///     let key = "key_test";
+    ///     let entries = vec![(10, String::from("player1")), (5, String::from("player2"))];
+    ///
+    ///     let added = client.zadd(key, entries).await.unwrap();
+    ///     println!("Number of entries added: {:?}", added);
+    ///
+    ///     let entries = client.zrange(key, 0, 5).await.unwrap();
+    ///     // Member: "player2", with score = 5
+    ///     for (score, member) in entries.into_iter() {
+    ///          println!("Member: \"{:?}\", with score = {:?}", score, member);
+    ///     }
+    /// }
+    /// ```
+    #[instrument(skip(self))]
+    pub async fn zrange(
+        &mut self,
+        key: &str,
+        start: u64,
+        stop: u64,
+    ) -> crate::Result<Vec<(u64, String)>> {
+        let frame = Zrange::new(key.to_string(), start, stop).into_frame();
+
+        debug!(request = ?frame);
+
+        // Write the frame to the socket. This writes the full frame to the
+        // socket, waiting if necessary.
+        let resp_frame = frame.encode_resp()?;
+        self.connection.write_frame(resp_frame).await?;
+
+        // Wait for the response from the server
+        //
+        // Expects an even number of frames.
+        // Each entry is represented in 2 consecutives frames
+        match self.read_response().await? {
+            Frame::Array(frames) => {
+                let mut response = Vec::new();
+
+                for chunk in frames.chunks(2) {
+                    match chunk {
+                        [Frame::Integer(score), Frame::Bulk(member)] => {
+                            let member = std::str::from_utf8(member)
+                                .map_err(|_| "invalid utf-8")?
+                                .to_string();
+
+                            response.push((*score, member));
+                        }
+                        _ => return Err("invalid ZRANGE response format".into()),
+                    }
+                }
+
+                Ok(response)
+            }
             frame => Err(frame.to_error()),
         }
     }

@@ -1,9 +1,9 @@
-use tokio::sync::{broadcast, Notify};
-use tokio::time::{self, Duration, Instant};
-
 use bytes::Bytes;
+use skiplist::ordered_skip_list::OrderedSkipList;
 use std::collections::{BTreeSet, HashMap};
 use std::sync::{Arc, Mutex};
+use tokio::sync::{broadcast, Notify};
+use tokio::time::{self, Duration, Instant};
 use tracing::debug;
 
 /// A wrapper around a `Db` instance. This exists to allow orderly cleanup
@@ -63,6 +63,9 @@ struct State {
     /// `std::collections::HashMap` works fine.
     entries: HashMap<String, Entry>,
 
+    /// No expiration mechanism here.
+    z_skiplist: HashMap<String, OrderedSkipList<EntryScore>>,
+
     /// The pub/sub key-space. Redis uses a **separate** key space for key-value
     /// and pub/sub. `mini-redis` handles this by using a separate `HashMap`.
     pub_sub: HashMap<String, broadcast::Sender<Bytes>>,
@@ -96,6 +99,21 @@ struct Entry {
     expires_at: Option<Instant>,
 }
 
+// TODO: Comparison must be in decreasing order !!
+#[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Clone)]
+pub struct EntryScore {
+    score: u64,
+    member: String,
+}
+impl EntryScore {
+    pub(crate) fn get_score(&self) -> u64 {
+        self.score
+    }
+    pub(crate) fn get_member(&self) -> String {
+        self.member.clone()
+    }
+}
+
 impl DbDropGuard {
     /// Create a new `DbDropGuard`, wrapping a `Db` instance. When this is dropped
     /// the `Db`'s purge task will be shut down.
@@ -124,6 +142,7 @@ impl Db {
         let shared = Arc::new(Shared {
             state: Mutex::new(State {
                 entries: HashMap::new(),
+                z_skiplist: HashMap::new(),
                 pub_sub: HashMap::new(),
                 expirations: BTreeSet::new(),
                 shutdown: false,
@@ -234,14 +253,53 @@ impl Db {
             }
         }
 
-        drop(state);
-
         // No need to notify the background task, either:
         //   - The removed key was next, resulting in the same behavior whether
         //     we notify now or wait for the expire call.
         //   - No expiration duration or further down the list. In this scenario,
         //     calling the background task is a waste of time.
         value
+    }
+
+    pub(crate) fn zadds(&self, key: String, entries: Vec<(u64, String)>) -> u64 {
+        let mut state = self.shared.state.lock().unwrap();
+
+        let skiplist = state
+            .z_skiplist
+            .entry(key)
+            .or_insert(OrderedSkipList::new());
+
+        let mut cnt = 0;
+        for (score, member) in entries.into_iter() {
+            let entry_score = EntryScore { score, member };
+            // No duplication are permitted here
+            skiplist.remove_by_value(&entry_score);
+            skiplist.insert(entry_score);
+            cnt += 1;
+        }
+        cnt
+    }
+
+    pub(crate) fn zrange(&self, key: &String, start: u64, stop: u64) -> Vec<EntryScore> {
+        let state = self.shared.state.lock().unwrap();
+
+        let skiplist = state.z_skiplist.get(key);
+
+        match skiplist {
+            Some(s) => {
+                let start_key = EntryScore {
+                    score: start,
+                    member: String::new(),
+                };
+
+                let stop_key = EntryScore {
+                    score: stop,
+                    member: String::from("\u{10FFFF}"), // max Unicode char trick
+                };
+                s.range(start_key..=stop_key).cloned().collect()
+            }
+            None => Vec::new(),
+        }
     }
 
     /// Returns a `Receiver` for the requested channel.

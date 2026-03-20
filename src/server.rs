@@ -253,7 +253,7 @@ impl Listener {
             .await?;
         }
 
-        info!("accepting inbound connections");
+        info!("Accepting inbound connections");
 
         loop {
             // Wait for a permit to become available

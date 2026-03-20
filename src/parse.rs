@@ -123,6 +123,12 @@ impl Parse {
             Err("protocol error; expected end of frame, but there was more".into())
         }
     }
+
+    /// Returns true in case there is no more frame to parse.
+    /// And false otherwise.
+    pub(crate) fn empty(&self) -> bool {
+        self.parts.len() == 0
+    }
 }
 
 impl From<String> for ParseError {

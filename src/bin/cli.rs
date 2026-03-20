@@ -56,6 +56,27 @@ enum Command {
         /// Name of the keys to remove
         keys: Vec<String>,
     },
+    /// Adds all the specified members with the specified scores
+    /// to the sorted set stored at key.
+    #[command(alias = "Zadd", alias = "ZADD")]
+    Zadd {
+        /// Name of the key
+        key: String,
+
+        /// Entries (pair of score-member)
+        /// Clap only supports flat list, it sees: ["10", "foo", "20", "bar"]
+        entries: Vec<String>,
+    },
+    /// Returns the specified range of elements in the sorted set stored at key.
+    #[command(alias = "Zrange", alias = "ZRANGE")]
+    Zrange {
+        /// Name of the key
+        key: String,
+        /// Start of the range (included)
+        start: u64,
+        /// End of the range (included)
+        stop: u64,
+    },
     ///  Publisher to send a message to a specific channel.
     #[command(alias = "Publish", alias = "PUBLISH")]
     Publish {
@@ -136,6 +157,26 @@ async fn main() -> mini_redis::Result<()> {
         Command::Del { keys } => {
             let removed = client.deletes(&keys).await?;
             println!("(integer) {removed:?}");
+        }
+        Command::Zadd { key, entries } => {
+            let mut iter = entries.into_iter();
+            let mut pairs = Vec::new();
+            while let (Some(score), Some(member)) = (iter.next(), iter.next()) {
+                let score = score.parse::<u64>()?;
+                pairs.push((score, member));
+            }
+            let added = client.zadd(&key, pairs).await?;
+            println!("(integer) {added:?}");
+        }
+        Command::Zrange { key, start, stop } => {
+            let score_member = client.zrange(&key, start, stop).await?;
+            if score_member.is_empty() {
+                println!("(nil)");
+            } else {
+                for (score, member) in score_member.into_iter() {
+                    println!("Score: {score:?} \t by: {member}");
+                }
+            }
         }
         Command::Publish { channel, message } => {
             client.publish(&channel, message).await?;

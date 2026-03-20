@@ -16,6 +16,12 @@ pub use subscribe::{Subscribe, Unsubscribe};
 mod ping;
 pub use ping::Ping;
 
+mod zrange;
+pub use zrange::Zrange;
+
+mod zadd;
+pub use zadd::Zadd;
+
 mod unknown;
 pub use unknown::Unknown;
 
@@ -33,6 +39,8 @@ pub enum Command {
     Subscribe(Subscribe),
     Unsubscribe(Unsubscribe),
     Ping(Ping),
+    Zadd(Zadd),
+    Zrange(Zrange),
     Unknown(Unknown),
 }
 
@@ -68,6 +76,8 @@ impl Command {
             "subscribe" => Command::Subscribe(Subscribe::parse_frames(&mut parse)?),
             "unsubscribe" => Command::Unsubscribe(Unsubscribe::parse_frames(&mut parse)?),
             "ping" => Command::Ping(Ping::parse_frames(&mut parse)?),
+            "zadd" => Command::Zadd(Zadd::parse_frames(&mut parse)?),
+            "zrange" => Command::Zrange(Zrange::parse_frames(&mut parse)?),
             _ => {
                 // The command is not recognized and an Unknown command is
                 // returned.
@@ -126,6 +136,8 @@ impl Command {
                     Err("Unknown command received with no connection provided".into())
                 }
             }
+            Zadd(cmd) => cmd.apply(db, dst).await,
+            Zrange(cmd) => cmd.apply(db, dst).await,
             // `Unsubscribe` cannot be applied. It may only be received from the
             // context of a `Subscribe` command.
             Unsubscribe(_) => Err("`Unsubscribe` is unsupported in this context".into()),
@@ -134,7 +146,7 @@ impl Command {
 
     /// Returns true if the commmand modifies the db
     pub(crate) fn is_write_command(&self) -> bool {
-        matches!(self, Command::Set(_) | Command::Del(_))
+        matches!(self, Command::Set(_) | Command::Del(_) | Command::Zadd(_))
     }
 
     /// Returns the command name
@@ -147,6 +159,8 @@ impl Command {
             Command::Subscribe(_) => "subscribe",
             Command::Unsubscribe(_) => "unsubscribe",
             Command::Ping(_) => "ping",
+            Command::Zadd(_) => "zadd",
+            Command::Zrange(_) => "zrange",
             Command::Unknown(cmd) => cmd.get_name(),
         }
     }

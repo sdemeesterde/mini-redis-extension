@@ -5,8 +5,8 @@ very good [Mini redis](https://github.com/tokio-rs/mini-redis) project.
 
 ## Next steps
 
-- Implement AOF (append to end of file) [IN PROGRESS]
-- Add ZSET, ZRANGE, .. command
+- Implement AOF (append to end of file) [ALMOST COMPLETE]
+- Add ZADD, ZRANGE, .. command [ALMOST COMPLETE]
 
 - Create a one page game:
   - Idea:
