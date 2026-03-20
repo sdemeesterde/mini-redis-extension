@@ -33,9 +33,7 @@ impl Zadd {
     /// ZADD key score member [score member]
     /// ```
     pub(crate) fn parse_frames(parse: &mut Parse) -> crate::Result<Zadd> {
-        println!("BEFORE");
         let key = parse.next_string()?;
-        println!("AFTER");
         let mut entries = Vec::new();
 
         while !parse.empty() {

@@ -120,6 +120,48 @@ async fn key_value_timeout() {
 }
 
 #[tokio::test]
+async fn zadd_zrange() {
+    let addr = start_server().await;
+
+    let mut stream = TcpStream::connect(addr).await.unwrap();
+
+    stream
+        .write_all(b"*4\r\n$4\r\nzadd\r\n$3\r\nkey\r\n:1\r\n$7\r\nplayer1\r\n")
+        .await
+        .unwrap();
+
+    let mut response = [0; 4];
+    // Read integer
+    stream.read_exact(&mut response).await.unwrap();
+
+    assert_eq!(b":1\r\n", &response);
+
+    // Try to retrieve with score range between 1-1
+    stream
+        .write_all(b"*4\r\n$6\r\nzrange\r\n$3\r\nkey\r\n:1\r\n:1\r\n")
+        .await
+        .unwrap();
+
+    let mut response = [0; 21];
+
+    stream.read_exact(&mut response).await.unwrap();
+
+    assert_eq!(b"*2\r\n:1\r\n$7\r\nplayer1\r\n", &response);
+
+    // Nothing matching the range 0-0
+    stream
+        .write_all(b"*4\r\n$6\r\nzrange\r\n$3\r\nkey\r\n:0\r\n:0\r\n")
+        .await
+        .unwrap();
+
+    let mut response = [0; 4];
+
+    stream.read_exact(&mut response).await.unwrap();
+
+    assert_eq!(b"*0\r\n", &response);
+}
+
+#[tokio::test]
 async fn pub_sub() {
     let addr = start_server().await;
 

@@ -88,6 +88,63 @@ async fn several_deletes() {
     assert_eq!(0, cnt);
 }
 
+/// Add and retrieve a score-member pair to a single key associated sorted set
+#[tokio::test]
+async fn zadd_zrange_one_value() {
+    let (addr, _) = start_server().await;
+
+    let mut client = Client::connect(addr).await.unwrap();
+
+    let key = "key1";
+    let entries = vec![(5, String::from("player1"))];
+
+    let added = client.zadd(key, entries.clone()).await.unwrap();
+    assert_eq!(1, added);
+
+    let entries_resp = client.zrange(key, 5, 5).await.unwrap();
+    assert_eq!(entries.clone(), entries_resp);
+
+    let entries_resp = client.zrange(key, 0, 5).await.unwrap();
+    assert_eq!(entries.clone(), entries_resp);
+
+    let entries_resp = client.zrange(key, 0, 10).await.unwrap();
+    assert_eq!(entries.clone(), entries_resp);
+}
+
+/// Add and retrieve multiple score-member pairs to a
+/// single key associated sorted set
+#[tokio::test]
+async fn zadd_zrange_several_values() {
+    let (addr, _) = start_server().await;
+
+    let mut client = Client::connect(addr).await.unwrap();
+
+    let key = "key";
+    let entries = vec![
+        (1, String::from("player1")),
+        (5, String::from("player2")),
+        (10, String::from("player3")),
+    ];
+
+    let added = client.zadd(key, entries.clone()).await.unwrap();
+    assert_eq!(3, added);
+
+    let entries_resp = client.zrange(key, 0, 0).await.unwrap();
+    assert_eq!(0, entries_resp.len());
+
+    let entries_resp = client.zrange("doesnt_exist", 0, 15).await.unwrap();
+    assert_eq!(0, entries_resp.len());
+
+    let entries_resp = client.zrange(key, 0, 15).await.unwrap();
+    assert_eq!(entries, entries_resp);
+
+    let entries_resp = client.zrange(key, 5, 15).await.unwrap();
+    assert_eq!(
+        vec![(5, String::from("player2")), (10, String::from("player3")),],
+        entries_resp
+    );
+}
+
 /// similar to the "hello world" style test, But this time
 /// a single channel subscription will be tested instead
 #[tokio::test]

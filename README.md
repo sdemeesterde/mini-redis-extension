@@ -6,15 +6,17 @@ very good [Mini redis](https://github.com/tokio-rs/mini-redis) project.
 ## Next steps
 
 - Implement AOF (append to end of file) [ALMOST COMPLETE]
-- Add ZADD, ZRANGE, .. command [ALMOST COMPLETE]
 
 - Create a one page game:
   - Idea:
     - Having words falling faster and faster. Must type them to make them disappear.
+    - Score = number of letter written
   - Motivation:
     - Fun game
     - Word vocabulary can be store in redis ?
     - Ranking of players showcase redis ?
+
+  - Compare latency with sqlite db ?
 
 - Unsure:
   - Make a comparison with sqlite latency ?
@@ -31,6 +33,18 @@ Terminal 2 (using the cli):
 cargo run --bin mini-redis-cli get foo
 "bar"
 ```
+## Demo - A simple game
+
+- Show number of active connections
+- Show ranking of players
+
+#### Architecture
+
+React (frontend)
+        ↓ HTTP / WebSocket (still unsure)
+Backend (Rust service)
+        ↓ TCP (RESP) -> Use client wrapper
+This Redis implementation
 
 ## Supported commands
 
@@ -38,6 +52,8 @@ cargo run --bin mini-redis-cli get foo
 * [GET](https://redis.io/commands/get)
 * [SET](https://redis.io/commands/set)
 * [DEL](https://redis.io/commands/del)
+* [ZADD](https://redis.io/commands/zadd)
+* [ZRANGE](https://redis.io/commands/zrange)
 * [PUBLISH](https://redis.io/commands/publish)
 * [SUBSCRIBE](https://redis.io/commands/subscribe)
 
