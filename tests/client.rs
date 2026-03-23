@@ -148,6 +148,53 @@ async fn zadd_zrange_several_values() {
     );
 }
 
+/// Test optional arguments REV and LIMIT
+#[tokio::test]
+async fn zadd_zrange_optional_arguments() {
+    let (addr, _) = start_server().await;
+
+    let mut client = Client::connect(addr).await.unwrap();
+
+    let key = "key";
+    let entries = vec![
+        (1, String::from("player1")),
+        (5, String::from("player2")),
+        (10, String::from("player3")),
+    ];
+
+    let added = client.zadd(key, entries.clone()).await.unwrap();
+    assert_eq!(3, added);
+
+    let entries_resp = client.zrange(key, 0, 10, true, None, None).await.unwrap();
+    assert_eq!(
+        entries_resp,
+        entries
+            .iter()
+            .rev()
+            .cloned()
+            .collect::<Vec<(u64, String)>>()
+    );
+
+    let entries_resp = client
+        .zrange(key, 0, 15, true, Some(1), Some(2))
+        .await
+        .unwrap();
+    assert_eq!(
+        entries_resp,
+        vec![(5, String::from("player2")), (1, String::from("player1"))]
+    );
+
+    // Count limit higher than number of elements
+    let entries_resp = client
+        .zrange(key, 0, 15, true, Some(1), Some(10))
+        .await
+        .unwrap();
+    assert_eq!(
+        entries_resp,
+        vec![(5, String::from("player2")), (1, String::from("player1"))]
+    );
+}
+
 /// similar to the "hello world" style test, But this time
 /// a single channel subscription will be tested instead
 #[tokio::test]

@@ -125,16 +125,29 @@ async fn zadd_zrange() {
 
     let mut stream = TcpStream::connect(addr).await.unwrap();
 
+    // Add one value
     stream
         .write_all(b"*4\r\n$4\r\nzadd\r\n$3\r\nkey\r\n:1\r\n$7\r\nplayer1\r\n")
         .await
         .unwrap();
 
     let mut response = [0; 4];
-    // Read integer
     stream.read_exact(&mut response).await.unwrap();
 
     assert_eq!(b":1\r\n", &response);
+
+    // Add two values
+    stream
+        .write_all(
+            b"*6\r\n$4\r\nzadd\r\n$3\r\nkey\r\n:2\r\n$7\r\nplayer2\r\n:3\r\n$7\r\nplayer3\r\n",
+        )
+        .await
+        .unwrap();
+
+    let mut response = [0; 4];
+    stream.read_exact(&mut response).await.unwrap();
+
+    assert_eq!(b":2\r\n", &response);
 
     // Try to retrieve with score range between 1-1
     stream
@@ -148,6 +161,38 @@ async fn zadd_zrange() {
 
     assert_eq!(b"*2\r\n:1\r\n$7\r\nplayer1\r\n", &response);
 
+    // Try to retrieve last element in decreasing order (= first element)
+    stream
+        .write_all(b"*8\r\n$6\r\nzrange\r\n$3\r\nkey\r\n:0\r\n:10\r\n$3\r\nREV\r\n$5\r\nLIMIT\r\n:2\r\n:1\r\n")
+        .await
+        .unwrap();
+
+    let mut response = [0; 21];
+    stream.read_exact(&mut response).await.unwrap();
+
+    assert_eq!(b"*2\r\n:1\r\n$7\r\nplayer1\r\n", &response);
+
+    // Too high offset -> No match
+    stream
+        .write_all(b"*8\r\n$6\r\nzrange\r\n$3\r\nkey\r\n:0\r\n:10\r\n$3\r\nREV\r\n$5\r\nLIMIT\r\n:3\r\n:1\r\n")
+        .await
+        .unwrap();
+
+    let mut response = [0; 4];
+    stream.read_exact(&mut response).await.unwrap();
+
+    assert_eq!(b"*0\r\n", &response);
+
+    // Smaller `offset`, letting `count` limit to one value
+    stream
+        .write_all(b"*8\r\n$6\r\nzrange\r\n$3\r\nkey\r\n:0\r\n:10\r\n$3\r\nREV\r\n$5\r\nLIMIT\r\n:1\r\n:1\r\n")
+        .await
+        .unwrap();
+
+    let mut response = [0; 21];
+    stream.read_exact(&mut response).await.unwrap();
+
+    assert_eq!(b"*2\r\n:2\r\n$7\r\nplayer2\r\n", &response);
     // Nothing matching the range 0-0
     stream
         .write_all(b"*4\r\n$6\r\nzrange\r\n$3\r\nkey\r\n:0\r\n:0\r\n")
