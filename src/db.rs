@@ -63,6 +63,11 @@ struct State {
     /// `std::collections::HashMap` works fine.
     entries: HashMap<String, Entry>,
 
+    /// The key-sorted set data. The sorted set is represented as `OrderedSkipList`
+    /// for efficient write/read operation on the sorted set. The data struct offers
+    /// good performance for insert (O(log n) on average) while being efficient on
+    /// get as well.
+    ///
     /// No expiration mechanism here.
     z_skiplist: HashMap<String, OrderedSkipList<EntryScore>>,
 
@@ -99,7 +104,6 @@ struct Entry {
     expires_at: Option<Instant>,
 }
 
-// TODO: Comparison must be in decreasing order !!
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Clone)]
 pub struct EntryScore {
     score: u64,
@@ -261,13 +265,13 @@ impl Db {
         value
     }
 
+    /// Returns the number of entryScore added
+    ///
+    /// Add the entryScores (score: u64, member: String) to the sorted set stored at key.
     pub(crate) fn zadds(&self, key: String, entries: Vec<(u64, String)>) -> u64 {
         let mut state = self.shared.state.lock().unwrap();
 
-        let skiplist = state
-            .z_skiplist
-            .entry(key)
-            .or_insert(OrderedSkipList::new());
+        let skiplist = state.z_skiplist.entry(key).or_default();
 
         let mut cnt = 0;
         for (score, member) in entries.into_iter() {
@@ -280,7 +284,21 @@ impl Db {
         cnt
     }
 
-    pub(crate) fn zrange(&self, key: &String, start: u64, stop: u64) -> Vec<EntryScore> {
+    /// Returns the specified range of elements in the sorted set stored at key.
+    ///
+    /// Three optional arguments:
+    ///    - rev: reverse the order of the output (decreasing order)
+    ///    - offset & count: must be set together. `Offset` the start of the output vec
+    ///      and `count` enforces len(output) <= count.
+    pub(crate) fn zrange(
+        &self,
+        key: &String,
+        start: u64,
+        stop: u64,
+        rev: bool,
+        offset: Option<u64>,
+        count: Option<u64>,
+    ) -> Vec<EntryScore> {
         let state = self.shared.state.lock().unwrap();
 
         let skiplist = state.z_skiplist.get(key);
@@ -291,12 +309,29 @@ impl Db {
                     score: start,
                     member: String::new(),
                 };
-
                 let stop_key = EntryScore {
                     score: stop,
                     member: String::from("\u{10FFFF}"), // max Unicode char trick
                 };
-                s.range(start_key..=stop_key).cloned().collect()
+                if let (Some(offset), Some(cnt)) = (offset, count) {
+                    let iter = s
+                        .range(start_key..=stop_key)
+                        .skip(offset as usize)
+                        .take(cnt as usize);
+                    if rev {
+                        iter.rev().cloned().collect()
+                    } else {
+                        iter.cloned().collect()
+                    }
+                } else {
+                    let iter = s.range(start_key..=stop_key);
+
+                    if rev {
+                        iter.rev().cloned().collect()
+                    } else {
+                        iter.cloned().collect()
+                    }
+                }
             }
             None => Vec::new(),
         }

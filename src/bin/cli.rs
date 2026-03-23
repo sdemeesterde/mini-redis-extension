@@ -76,6 +76,17 @@ enum Command {
         start: u64,
         /// End of the range (included)
         stop: u64,
+
+        /// Optional REV
+        /// Reverse the order of the output (decreasing)
+        rev: bool,
+
+        /// Optional LIMIT parameter
+        /// Offset from which the range will start based on first match
+        offset: Option<u64>,
+        /// Optional LIMIT parameter
+        /// Number of maximum selected elements
+        count: Option<u64>,
     },
     ///  Publisher to send a message to a specific channel.
     #[command(alias = "Publish", alias = "PUBLISH")]
@@ -168,8 +179,15 @@ async fn main() -> mini_redis::Result<()> {
             let added = client.zadd(&key, pairs).await?;
             println!("(integer) {added:?}");
         }
-        Command::Zrange { key, start, stop } => {
-            let score_member = client.zrange(&key, start, stop).await?;
+        Command::Zrange {
+            key,
+            start,
+            stop,
+            rev,
+            offset,
+            count,
+        } => {
+            let score_member = client.zrange(&key, start, stop, rev, offset, count).await?;
             if score_member.is_empty() {
                 println!("(nil)");
             } else {

@@ -401,7 +401,7 @@ impl Client {
     ///     let added = client.zadd(key, entries).await.unwrap();
     ///     println!("Number of entries added: {:?}", added);
     ///
-    ///     let entries = client.zrange(key, 0, 5).await.unwrap();
+    ///     let entries = client.zrange(key, 0, 5, false, None, None).await.unwrap();
     ///     // Member: "player2", with score = 5
     ///     for (score, member) in entries.into_iter() {
     ///          println!("Member: \"{:?}\", with score = {:?}", score, member);
@@ -414,8 +414,11 @@ impl Client {
         key: &str,
         start: u64,
         stop: u64,
+        rev: bool,
+        offset: Option<u64>,
+        count: Option<u64>,
     ) -> crate::Result<Vec<(u64, String)>> {
-        let frame = Zrange::new(key.to_string(), start, stop).into_frame();
+        let frame = Zrange::new(key.to_string(), start, stop, rev, offset, count).into_frame();
 
         debug!(request = ?frame);
 

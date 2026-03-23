@@ -101,13 +101,13 @@ async fn zadd_zrange_one_value() {
     let added = client.zadd(key, entries.clone()).await.unwrap();
     assert_eq!(1, added);
 
-    let entries_resp = client.zrange(key, 5, 5).await.unwrap();
+    let entries_resp = client.zrange(key, 5, 5, false, None, None).await.unwrap();
     assert_eq!(entries.clone(), entries_resp);
 
-    let entries_resp = client.zrange(key, 0, 5).await.unwrap();
+    let entries_resp = client.zrange(key, 0, 5, false, None, None).await.unwrap();
     assert_eq!(entries.clone(), entries_resp);
 
-    let entries_resp = client.zrange(key, 0, 10).await.unwrap();
+    let entries_resp = client.zrange(key, 0, 10, false, None, None).await.unwrap();
     assert_eq!(entries.clone(), entries_resp);
 }
 
@@ -129,16 +129,19 @@ async fn zadd_zrange_several_values() {
     let added = client.zadd(key, entries.clone()).await.unwrap();
     assert_eq!(3, added);
 
-    let entries_resp = client.zrange(key, 0, 0).await.unwrap();
+    let entries_resp = client.zrange(key, 0, 0, false, None, None).await.unwrap();
     assert_eq!(0, entries_resp.len());
 
-    let entries_resp = client.zrange("doesnt_exist", 0, 15).await.unwrap();
+    let entries_resp = client
+        .zrange("doesnt_exist", 0, 15, false, None, None)
+        .await
+        .unwrap();
     assert_eq!(0, entries_resp.len());
 
-    let entries_resp = client.zrange(key, 0, 15).await.unwrap();
+    let entries_resp = client.zrange(key, 0, 15, false, None, None).await.unwrap();
     assert_eq!(entries, entries_resp);
 
-    let entries_resp = client.zrange(key, 5, 15).await.unwrap();
+    let entries_resp = client.zrange(key, 5, 15, false, None, None).await.unwrap();
     assert_eq!(
         vec![(5, String::from("player2")), (10, String::from("player3")),],
         entries_resp
