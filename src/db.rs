@@ -313,24 +313,25 @@ impl Db {
                     score: stop,
                     member: String::from("\u{10FFFF}"), // max Unicode char trick
                 };
-                if let (Some(offset), Some(cnt)) = (offset, count) {
-                    let iter = s
-                        .range(start_key..=stop_key)
-                        .skip(offset as usize)
-                        .take(cnt as usize);
-                    if rev {
-                        iter.rev().cloned().collect()
-                    } else {
-                        iter.cloned().collect()
-                    }
-                } else {
-                    let iter = s.range(start_key..=stop_key);
+                let iter = s.range(start_key..=stop_key);
 
-                    if rev {
-                        iter.rev().cloned().collect()
+                if rev {
+                    if let (Some(offset), Some(cnt)) = (offset, count) {
+                        iter.rev()
+                            .skip(offset as usize)
+                            .take(cnt as usize)
+                            .cloned()
+                            .collect()
                     } else {
-                        iter.cloned().collect()
+                        iter.rev().cloned().collect()
                     }
+                } else if let (Some(offset), Some(cnt)) = (offset, count) {
+                    iter.skip(offset as usize)
+                        .take(cnt as usize)
+                        .cloned()
+                        .collect()
+                } else {
+                    iter.cloned().collect()
                 }
             }
             None => Vec::new(),
