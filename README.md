@@ -5,18 +5,7 @@ very good [Mini redis](https://github.com/tokio-rs/mini-redis) project.
 
 ## Next steps
 
-- Implement AOF (append to end of file) [ALMOST COMPLETE]
-
-- Create a one page game:
-  - Idea:
-    - Having words falling faster and faster. Must type them to make them disappear.
-    - Score = number of letter written
-  - Motivation:
-    - Fun game
-    - Word vocabulary can be store in redis ?
-    - Ranking of players showcase redis ?
-
-  - Compare latency with sqlite db ?
+- Add command SADD, SREM, SISMEMBER
 
 - Unsure:
   - Make a comparison with sqlite latency ?
