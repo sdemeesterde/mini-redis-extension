@@ -69,7 +69,7 @@ struct State {
     /// get as well.
     ///
     /// No expiration mechanism here.
-    z_skiplist: HashMap<String, OrderedSkipList<EntryScore>>,
+    z_skiplist: HashMap<String, OrderedSkipList<ScoreEntry>>,
 
     /// The pub/sub key-space. Redis uses a **separate** key space for key-value
     /// and pub/sub. `mini-redis` handles this by using a separate `HashMap`.
@@ -105,11 +105,11 @@ struct Entry {
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Clone)]
-pub struct EntryScore {
+pub struct ScoreEntry {
     score: u64,
     member: String,
 }
-impl EntryScore {
+impl ScoreEntry {
     pub(crate) fn get_score(&self) -> u64 {
         self.score
     }
@@ -265,9 +265,9 @@ impl Db {
         value
     }
 
-    /// Returns the number of entryScore added
+    /// Returns the number of scoreEntry added
     ///
-    /// Add the entryScores (score: u64, member: String) to the sorted set stored at key.
+    /// Add the scoreEntry (score: u64, member: String) to the sorted set stored at key.
     pub(crate) fn zadds(&self, key: String, entries: Vec<(u64, String)>) -> u64 {
         let mut state = self.shared.state.lock().unwrap();
 
@@ -275,7 +275,7 @@ impl Db {
 
         let mut cnt = 0;
         for (score, member) in entries.into_iter() {
-            let entry_score = EntryScore { score, member };
+            let entry_score = ScoreEntry { score, member };
             // No duplication are permitted here
             skiplist.remove_by_value(&entry_score);
             skiplist.insert(entry_score);
@@ -298,18 +298,18 @@ impl Db {
         rev: bool,
         offset: Option<u64>,
         count: Option<u64>,
-    ) -> Vec<EntryScore> {
+    ) -> Vec<ScoreEntry> {
         let state = self.shared.state.lock().unwrap();
 
         let skiplist = state.z_skiplist.get(key);
 
         match skiplist {
             Some(s) => {
-                let start_key = EntryScore {
+                let start_key = ScoreEntry {
                     score: start,
                     member: String::new(),
                 };
-                let stop_key = EntryScore {
+                let stop_key = ScoreEntry {
                     score: stop,
                     member: String::from("\u{10FFFF}"), // max Unicode char trick
                 };

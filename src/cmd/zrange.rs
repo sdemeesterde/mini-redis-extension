@@ -1,7 +1,7 @@
 use bytes::Bytes;
 use tracing::{debug, instrument};
 
-use crate::{db::EntryScore, Connection, Db, Frame, Parse};
+use crate::{db::ScoreEntry, Connection, Db, Frame, Parse};
 
 #[derive(Debug)]
 pub struct Zrange {
@@ -123,7 +123,7 @@ impl Zrange {
     pub(crate) async fn apply(self, db: &Db, dst: Option<&mut Connection>) -> crate::Result<()> {
         if let Some(dst) = dst {
             let mut response = Frame::array();
-            let entry_scores: Vec<EntryScore> = db.zrange(
+            let entry_scores: Vec<ScoreEntry> = db.zrange(
                 &self.key,
                 self.start,
                 self.stop,
