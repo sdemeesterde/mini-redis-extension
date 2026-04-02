@@ -16,6 +16,18 @@ pub use subscribe::{Subscribe, Unsubscribe};
 mod ping;
 pub use ping::Ping;
 
+mod sadd;
+pub use sadd::Sadd;
+
+// mod sismember;
+// pub use sismember::Sismember;
+
+// mod sislength;
+// pub use sislength::Sislength;
+
+// mod srem;
+// pub use srem::Srem;
+
 mod zrange;
 pub use zrange::Zrange;
 

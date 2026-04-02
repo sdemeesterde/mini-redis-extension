@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use skiplist::ordered_skip_list::OrderedSkipList;
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 use tokio::sync::{broadcast, Notify};
 use tokio::time::{self, Duration, Instant};
@@ -62,6 +62,8 @@ struct State {
     /// The key-value data. We are not trying to do anything fancy so a
     /// `std::collections::HashMap` works fine.
     entries: HashMap<String, Entry>,
+
+    s_set: HashMap<String, HashSet<String>>,
 
     /// The key-sorted set data. The sorted set is represented as `OrderedSkipList`
     /// for efficient write/read operation on the sorted set. The data struct offers
@@ -146,6 +148,7 @@ impl Db {
         let shared = Arc::new(Shared {
             state: Mutex::new(State {
                 entries: HashMap::new(),
+                s_set: HashMap::new(),
                 z_skiplist: HashMap::new(),
                 pub_sub: HashMap::new(),
                 expirations: BTreeSet::new(),
@@ -263,6 +266,22 @@ impl Db {
         //   - No expiration duration or further down the list. In this scenario,
         //     calling the background task is a waste of time.
         value
+    }
+
+    /// Returns the number of scoreEntry added
+    ///
+    /// Add the members the set stored at key.
+    pub(crate) fn sadds(&self, key: String, members: Vec<String>) -> u64 {
+        let mut state = self.shared.state.lock().unwrap();
+
+        let set = state.s_set.entry(key).or_default();
+
+        let mut cnt = 0;
+        for member in members.into_iter() {
+            set.insert(member);
+            cnt += 1;
+        }
+        cnt
     }
 
     /// Returns the number of scoreEntry added
