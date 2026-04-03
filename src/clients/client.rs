@@ -3,7 +3,7 @@
 //! Provides an async connect and methods for issuing the supported commands.
 
 use crate::cmd::{
-    Del, Get, Ping, Publish, Sadd, Set, Sismember, Srem, Subscribe, Unsubscribe, Zadd, Zrange,
+    Del, Get, Ping, Publish, Sadd, Set, Sismember, Srem, Subscribe, Unsubscribe, Zadd, Zrange, Zrem,
 };
 use crate::{Connection, Frame};
 
@@ -576,6 +576,48 @@ impl Client {
 
                 Ok(response)
             }
+            frame => Err(frame.to_error()),
+        }
+    }
+
+    /// Remove members to the sorted set associated key.
+    ///
+    /// Return the number of actually removed members.
+    ///
+    /// # Examples
+    ///
+    /// Demonstrates basic usage.
+    ///
+    /// ```no_run
+    /// use mini_redis::clients::Client;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let mut client = Client::connect("localhost:6379").await.unwrap();
+    ///
+    ///     let key = "key_test";
+    ///     let members = vec![String::from("player1"), String::from("player2")];
+    ///
+    ///     let removed = client.zrem(key, members).await.unwrap();
+    ///     println!("Number of removed members: {:?}", removed);
+    /// }
+    /// ```
+    #[instrument(skip(self))]
+    pub async fn zrem(&mut self, key: &str, members: Vec<String>) -> crate::Result<usize> {
+        let frame = Zrem::new(key.to_string(), members).into_frame();
+
+        debug!(request = ?frame);
+
+        // Write the frame to the socket. This writes the full frame to the
+        // socket, waiting if necessary.
+        let resp_frame = frame.encode_resp()?;
+        self.connection.write_frame(resp_frame).await?;
+
+        // Wait for the response from the server
+        //
+        // Only Integer frame is accepted, telling how many keys were added
+        match self.read_response().await? {
+            Frame::Integer(removed) => Ok(removed as usize),
             frame => Err(frame.to_error()),
         }
     }

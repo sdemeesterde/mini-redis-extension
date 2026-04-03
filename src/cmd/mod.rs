@@ -28,11 +28,14 @@ pub use sismember::Sismember;
 mod srem;
 pub use srem::Srem;
 
+mod zadd;
+pub use zadd::Zadd;
+
 mod zrange;
 pub use zrange::Zrange;
 
-mod zadd;
-pub use zadd::Zadd;
+mod zrem;
+pub use zrem::Zrem;
 
 mod unknown;
 pub use unknown::Unknown;

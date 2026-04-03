@@ -35,6 +35,23 @@ pub(crate) struct Db {
     shared: Arc<Shared>,
 }
 
+#[derive(Debug, Clone)]
+struct S {
+    sets: HashMap<String, HashSet<String>>,
+}
+
+#[derive(Debug, Clone)]
+struct Z {
+    member_scores: HashMap<String, HashMap<String, u64>>,
+    /// The key-sorted set data. The sorted set is represented as `OrderedSkipList`
+    /// for efficient write/read operation on the sorted set. The data struct offers
+    /// good performance for insert (O(log n) on average) while being efficient on
+    /// get as well.
+    ///
+    /// No expiration mechanism here.
+    skiplists: HashMap<String, OrderedSkipList<ScoreEntry>>,
+}
+
 #[derive(Debug)]
 struct Shared {
     /// The shared state is guarded by a mutex. This is a `std::sync::Mutex` and
@@ -63,15 +80,9 @@ struct State {
     /// `std::collections::HashMap` works fine.
     entries: HashMap<String, Entry>,
 
-    s_set: HashMap<String, HashSet<String>>,
+    s: S,
 
-    /// The key-sorted set data. The sorted set is represented as `OrderedSkipList`
-    /// for efficient write/read operation on the sorted set. The data struct offers
-    /// good performance for insert (O(log n) on average) while being efficient on
-    /// get as well.
-    ///
-    /// No expiration mechanism here.
-    z_skiplist: HashMap<String, OrderedSkipList<ScoreEntry>>,
+    z: Z,
 
     /// The pub/sub key-space. Redis uses a **separate** key space for key-value
     /// and pub/sub. `mini-redis` handles this by using a separate `HashMap`.
@@ -148,8 +159,13 @@ impl Db {
         let shared = Arc::new(Shared {
             state: Mutex::new(State {
                 entries: HashMap::new(),
-                s_set: HashMap::new(),
-                z_skiplist: HashMap::new(),
+                s: S {
+                    sets: HashMap::new(),
+                },
+                z: Z {
+                    member_scores: HashMap::new(),
+                    skiplists: HashMap::new(),
+                },
                 pub_sub: HashMap::new(),
                 expirations: BTreeSet::new(),
                 shutdown: false,
@@ -274,7 +290,8 @@ impl Db {
     pub(crate) fn sadd(&self, key: String, members: Vec<String>) -> u64 {
         let mut state = self.shared.state.lock().unwrap();
 
-        let set = state.s_set.entry(key).or_default();
+        let S { ref mut sets } = state.s;
+        let set = sets.entry(key).or_default();
 
         let mut cnt = 0;
         for member in members.into_iter() {
@@ -289,7 +306,9 @@ impl Db {
     pub(crate) fn sismember(&self, key: &str, member: &str) -> u64 {
         let state = self.shared.state.lock().unwrap();
 
-        if let Some(set) = state.s_set.get(key) {
+        let S { ref sets } = state.s;
+
+        if let Some(set) = sets.get(key) {
             if set.contains(member) {
                 return 1;
             }
@@ -303,35 +322,54 @@ impl Db {
     pub(crate) fn srem(&self, key: String, members: Vec<String>) -> u64 {
         let mut state = self.shared.state.lock().unwrap();
 
+        let S { ref mut sets } = state.s;
+
         let mut cnt = 0;
-        if let Some(set) = state.s_set.get_mut(&key) {
+        if let Some(set) = sets.get_mut(&key) {
             for member in members.into_iter() {
                 if set.remove(&member) {
                     cnt += 1;
                 }
             }
         }
-
         cnt
     }
 
     /// Returns the number of scoreEntry added
     ///
     /// Add the scoreEntry (score: u64, member: String) to the sorted set stored at key.
-    pub(crate) fn zadds(&self, key: String, entries: Vec<(u64, String)>) -> u64 {
+    /// Only one occurrence of member is accepted. If one is present, it is updated,
+    /// and not considered as a new scoreEntry added.
+    pub(crate) fn zadd(&self, key: String, entries: Vec<(u64, String)>) -> u64 {
         let mut state = self.shared.state.lock().unwrap();
 
-        let skiplist = state.z_skiplist.entry(key).or_default();
+        let Z {
+            ref mut member_scores,
+            ref mut skiplists,
+        } = state.z;
 
-        let mut cnt = 0;
+        let member_score = member_scores.entry(key.clone()).or_default();
+        let skiplist = skiplists.entry(key).or_default();
+
+        let mut cnt: i64 = 0;
         for (score, member) in entries.into_iter() {
-            let entry_score = ScoreEntry { score, member };
-            // No duplication are permitted here
-            skiplist.remove_by_value(&entry_score);
+            let entry_score = ScoreEntry {
+                score,
+                member: member.clone(),
+            };
+            // Only one occurrence of member is accepted in z structure.
+            if let Some(old_score) = member_score.remove(&member) {
+                skiplist.remove_by_value(&ScoreEntry {
+                    score: old_score,
+                    member: member.clone(),
+                });
+                cnt -= 1;
+            }
             skiplist.insert(entry_score);
+            member_score.insert(member, score);
             cnt += 1;
         }
-        cnt
+        cnt as u64
     }
 
     /// Returns the specified range of elements in the sorted set stored at key.
@@ -351,10 +389,10 @@ impl Db {
     ) -> Vec<ScoreEntry> {
         let state = self.shared.state.lock().unwrap();
 
-        let skiplist = state.z_skiplist.get(key);
+        let Z { ref skiplists, .. } = state.z;
 
-        match skiplist {
-            Some(s) => {
+        match skiplists.get(key) {
+            Some(skiplist) => {
                 let start_key = ScoreEntry {
                     score: start,
                     member: String::new(),
@@ -363,7 +401,7 @@ impl Db {
                     score: stop,
                     member: String::from("\u{10FFFF}"), // max Unicode char trick
                 };
-                let iter = s.range(start_key..=stop_key);
+                let iter = skiplist.range(start_key..=stop_key);
 
                 if rev {
                     if let (Some(offset), Some(cnt)) = (offset, count) {
@@ -386,6 +424,36 @@ impl Db {
             }
             None => Vec::new(),
         }
+    }
+
+    /// Returns the number of actually removed members
+    ///
+    /// Remove the members of the set stored at key.
+    pub(crate) fn zrem(&self, key: String, members: Vec<String>) -> u64 {
+        let mut state = self.shared.state.lock().unwrap();
+
+        let Z {
+            ref mut member_scores,
+            ref mut skiplists,
+        } = state.z;
+
+        let mut cnt = 0;
+        if let Some(skiplist) = skiplists.get_mut(&key) {
+            if let Some(member_score) = member_scores.get_mut(&key) {
+                for member in members.into_iter() {
+                    let score_entry = ScoreEntry {
+                        // Can afford to panic as the score should be stored here.
+                        // Zadd is responsible for updating both hashmaps.
+                        score: *member_score.get(&member).unwrap(),
+                        member,
+                    };
+                    if skiplist.remove_by_value(&score_entry) {
+                        cnt += 1;
+                    }
+                }
+            }
+        }
+        cnt
     }
 
     /// Returns a `Receiver` for the requested channel.
