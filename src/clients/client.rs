@@ -2,7 +2,9 @@
 //!
 //! Provides an async connect and methods for issuing the supported commands.
 
-use crate::cmd::{Del, Get, Ping, Publish, Sadd, Set, Subscribe, Unsubscribe, Zadd, Zrange};
+use crate::cmd::{
+    Del, Get, Ping, Publish, Sadd, Set, Sismember, Subscribe, Unsubscribe, Zadd, Zrange,
+};
 use crate::{Connection, Frame};
 
 use async_stream::try_stream;
@@ -376,6 +378,46 @@ impl Client {
         // Only Integer frame is accepted, telling how many keys were added
         match self.read_response().await? {
             Frame::Integer(added) => Ok(added as usize),
+            frame => Err(frame.to_error()),
+        }
+    }
+
+    /// Returns 1 if member is present, 0 otherwise.
+    ///
+    /// # Examples
+    ///
+    /// Demonstrates basic usage.
+    ///
+    /// ```no_run
+    /// use mini_redis::clients::Client;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let mut client = Client::connect("localhost:6379").await.unwrap();
+    ///
+    ///     let key = "key_test";
+    ///     let member = "player1";
+    ///
+    ///     let is_member = client.sismember(key, member).await.unwrap();
+    ///     println!("is member: {:?}", is_member);
+    /// }
+    /// ```
+    #[instrument(skip(self))]
+    pub async fn sismember(&mut self, key: &str, member: &str) -> crate::Result<usize> {
+        let frame = Sismember::new(key.to_string(), member.to_string()).into_frame();
+
+        debug!(request = ?frame);
+
+        // Write the frame to the socket. This writes the full frame to the
+        // socket, waiting if necessary.
+        let resp_frame = frame.encode_resp()?;
+        self.connection.write_frame(resp_frame).await?;
+
+        // Wait for the response from the server
+        //
+        // Only Integer frame is accepted, telling how many keys were added
+        match self.read_response().await? {
+            Frame::Integer(is_member) => Ok(is_member as usize),
             frame => Err(frame.to_error()),
         }
     }

@@ -285,6 +285,18 @@ impl Db {
         cnt
     }
 
+    /// Returns 1 if the member is present, 0 otherwise.
+    pub(crate) fn sismember(&self, key: &str, member: &str) -> u64 {
+        let state = self.shared.state.lock().unwrap();
+
+        if let Some(set) = state.s_set.get(key) {
+            if set.contains(member) {
+                return 1;
+            }
+        }
+        0
+    }
+
     /// Returns the number of scoreEntry added
     ///
     /// Add the scoreEntry (score: u64, member: String) to the sorted set stored at key.
@@ -312,7 +324,7 @@ impl Db {
     ///      and `count` enforces len(output) <= count.
     pub(crate) fn zrange(
         &self,
-        key: &String,
+        key: &str,
         start: u64,
         stop: u64,
         rev: bool,

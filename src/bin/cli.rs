@@ -65,6 +65,15 @@ enum Command {
         /// Members to add the the key set
         members: Vec<String>,
     },
+    /// Check if member is included is set associated key
+    #[command(alias = "Sismember", alias = "SISMEMBER")]
+    Sismember {
+        /// Name of the key
+        key: String,
+
+        /// Member to check whether is contained
+        member: String,
+    },
     /// Adds all the specified members with the specified scores
     /// to the sorted set stored at key.
     #[command(alias = "Zadd", alias = "ZADD")]
@@ -177,6 +186,10 @@ async fn main() -> mini_redis::Result<()> {
         Command::Del { keys } => {
             let removed = client.deletes(&keys).await?;
             println!("(integer) {removed:?}");
+        }
+        Command::Sismember { key, member } => {
+            let is_member = client.sismember(&key, &member).await?;
+            println!("(integer) {is_member:?}");
         }
         Command::Sadd { key, members } => {
             let added = client.sadd(&key, members).await?;
