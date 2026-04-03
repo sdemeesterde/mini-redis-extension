@@ -278,8 +278,7 @@ impl Db {
 
         let mut cnt = 0;
         for member in members.into_iter() {
-            if !set.contains(&member) {
-                set.insert(member);
+            if set.insert(member) {
                 cnt += 1;
             }
         }

@@ -5,7 +5,7 @@ very good [Mini redis](https://github.com/tokio-rs/mini-redis) project.
 
 ## Next steps
 
-- Add command SADD, SREM, SISMEMBER, SLENGTH (unoffical command)
+- Add command SREM, SISMEMBER, SLENGTH (unoffical command)
 
 - Unsure:
   - Make a comparison with sqlite latency ?
@@ -41,6 +41,7 @@ This Redis implementation
 * [GET](https://redis.io/commands/get)
 * [SET](https://redis.io/commands/set)
 * [DEL](https://redis.io/commands/del)
+* [SADD](https://redis.io/docs/latest/commands/sadd)
 * [ZADD](https://redis.io/commands/zadd)
 * [ZRANGE](https://redis.io/commands/zrange)
 * [PUBLISH](https://redis.io/commands/publish)
