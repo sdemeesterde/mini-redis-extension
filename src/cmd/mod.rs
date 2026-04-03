@@ -25,8 +25,8 @@ pub use sismember::Sismember;
 // mod sislength;
 // pub use sislength::Sislength;
 
-// mod srem;
-// pub use srem::Srem;
+mod srem;
+pub use srem::Srem;
 
 mod zrange;
 pub use zrange::Zrange;
@@ -53,6 +53,7 @@ pub enum Command {
     Ping(Ping),
     Sadd(Sadd),
     Sismember(Sismember),
+    Srem(Srem),
     Zadd(Zadd),
     Zrange(Zrange),
     Unknown(Unknown),
@@ -92,6 +93,7 @@ impl Command {
             "ping" => Command::Ping(Ping::parse_frames(&mut parse)?),
             "sadd" => Command::Sadd(Sadd::parse_frames(&mut parse)?),
             "sismember" => Command::Sismember(Sismember::parse_frames(&mut parse)?),
+            "srem" => Command::Srem(Srem::parse_frames(&mut parse)?),
             "zadd" => Command::Zadd(Zadd::parse_frames(&mut parse)?),
             "zrange" => Command::Zrange(Zrange::parse_frames(&mut parse)?),
             _ => {
@@ -154,6 +156,7 @@ impl Command {
             }
             Sadd(cmd) => cmd.apply(db, dst).await,
             Sismember(cmd) => cmd.apply(db, dst).await,
+            Srem(cmd) => cmd.apply(db, dst).await,
             Zadd(cmd) => cmd.apply(db, dst).await,
             Zrange(cmd) => cmd.apply(db, dst).await,
             // `Unsubscribe` cannot be applied. It may only be received from the
@@ -179,6 +182,7 @@ impl Command {
             Command::Ping(_) => "ping",
             Command::Sadd(_) => "sadd",
             Command::Sismember(_) => "sismember",
+            Command::Srem(_) => "srem",
             Command::Zadd(_) => "zadd",
             Command::Zrange(_) => "zrange",
             Command::Unknown(cmd) => cmd.get_name(),

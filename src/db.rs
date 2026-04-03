@@ -297,6 +297,24 @@ impl Db {
         0
     }
 
+    /// Returns the number of actually removed members
+    ///
+    /// Add the members the set stored at key.
+    pub(crate) fn srem(&self, key: String, members: Vec<String>) -> u64 {
+        let mut state = self.shared.state.lock().unwrap();
+
+        let mut cnt = 0;
+        if let Some(set) = state.s_set.get_mut(&key) {
+            for member in members.into_iter() {
+                if set.remove(&member) {
+                    cnt += 1;
+                }
+            }
+        }
+
+        cnt
+    }
+
     /// Returns the number of scoreEntry added
     ///
     /// Add the scoreEntry (score: u64, member: String) to the sorted set stored at key.

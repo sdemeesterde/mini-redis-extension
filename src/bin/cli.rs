@@ -74,6 +74,15 @@ enum Command {
         /// Member to check whether is contained
         member: String,
     },
+    /// Remove member(s) from the set associated key
+    #[command(alias = "Srem", alias = "SADD")]
+    Srem {
+        /// Name of the key
+        key: String,
+
+        /// Member(s) to remove
+        members: Vec<String>,
+    },
     /// Adds all the specified members with the specified scores
     /// to the sorted set stored at key.
     #[command(alias = "Zadd", alias = "ZADD")]
@@ -187,13 +196,17 @@ async fn main() -> mini_redis::Result<()> {
             let removed = client.deletes(&keys).await?;
             println!("(integer) {removed:?}");
         }
+        Command::Sadd { key, members } => {
+            let added = client.sadd(&key, members).await?;
+            println!("(integer) {added:?}");
+        }
         Command::Sismember { key, member } => {
             let is_member = client.sismember(&key, &member).await?;
             println!("(integer) {is_member:?}");
         }
-        Command::Sadd { key, members } => {
-            let added = client.sadd(&key, members).await?;
-            println!("(integer) {added:?}");
+        Command::Srem { key, members } => {
+            let removed = client.srem(&key, members).await?;
+            println!("(integer) {removed:?}");
         }
         Command::Zadd { key, entries } => {
             let mut iter = entries.into_iter();

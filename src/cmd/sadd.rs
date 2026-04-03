@@ -66,7 +66,7 @@ impl Sadd {
 
     /// Converts the command into an equivalent `Frame`.
     ///
-    /// This is called by the client when encoding a `Zadd` command to send to
+    /// This is called by the client when encoding a `Sadd` command to send to
     /// the server.
     pub(crate) fn into_frame(self) -> Frame {
         let mut frame = Frame::array();
