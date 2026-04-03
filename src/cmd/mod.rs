@@ -51,6 +51,7 @@ pub enum Command {
     Subscribe(Subscribe),
     Unsubscribe(Unsubscribe),
     Ping(Ping),
+    Sadd(Sadd),
     Zadd(Zadd),
     Zrange(Zrange),
     Unknown(Unknown),
@@ -88,6 +89,7 @@ impl Command {
             "subscribe" => Command::Subscribe(Subscribe::parse_frames(&mut parse)?),
             "unsubscribe" => Command::Unsubscribe(Unsubscribe::parse_frames(&mut parse)?),
             "ping" => Command::Ping(Ping::parse_frames(&mut parse)?),
+            "sadd" => Command::Sadd(Sadd::parse_frames(&mut parse)?),
             "zadd" => Command::Zadd(Zadd::parse_frames(&mut parse)?),
             "zrange" => Command::Zrange(Zrange::parse_frames(&mut parse)?),
             _ => {
@@ -148,6 +150,7 @@ impl Command {
                     Err("Unknown command received with no connection provided".into())
                 }
             }
+            Sadd(cmd) => cmd.apply(db, dst).await,
             Zadd(cmd) => cmd.apply(db, dst).await,
             Zrange(cmd) => cmd.apply(db, dst).await,
             // `Unsubscribe` cannot be applied. It may only be received from the
@@ -171,6 +174,7 @@ impl Command {
             Command::Subscribe(_) => "subscribe",
             Command::Unsubscribe(_) => "unsubscribe",
             Command::Ping(_) => "ping",
+            Command::Sadd(_) => "sadd",
             Command::Zadd(_) => "zadd",
             Command::Zrange(_) => "zrange",
             Command::Unknown(cmd) => cmd.get_name(),

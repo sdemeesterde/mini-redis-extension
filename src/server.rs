@@ -400,7 +400,7 @@ impl Handler {
             // If the command modifies the db, writes the frames to
             // Append-Only-File buffer
             if cmd.is_write_command() {
-                info!("is write command");
+                info!("Command modifying the db.");
                 let resp_frame = frame.encode_resp()?;
                 self.aof_writer.write_to_buffer(resp_frame).await?;
             }

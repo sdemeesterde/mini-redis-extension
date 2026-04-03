@@ -268,18 +268,20 @@ impl Db {
         value
     }
 
-    /// Returns the number of scoreEntry added
+    /// Returns the number of newly added members
     ///
     /// Add the members the set stored at key.
-    pub(crate) fn sadds(&self, key: String, members: Vec<String>) -> u64 {
+    pub(crate) fn sadd(&self, key: String, members: Vec<String>) -> u64 {
         let mut state = self.shared.state.lock().unwrap();
 
         let set = state.s_set.entry(key).or_default();
 
         let mut cnt = 0;
         for member in members.into_iter() {
-            set.insert(member);
-            cnt += 1;
+            if !set.contains(&member) {
+                set.insert(member);
+                cnt += 1;
+            }
         }
         cnt
     }

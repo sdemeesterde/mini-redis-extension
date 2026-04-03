@@ -56,6 +56,15 @@ enum Command {
         /// Name of the keys to remove
         keys: Vec<String>,
     },
+    /// Add the members to set associated key
+    #[command(alias = "Sadd", alias = "SADD")]
+    Sadd {
+        /// Name of the key
+        key: String,
+
+        /// Members to add the the key set
+        members: Vec<String>,
+    },
     /// Adds all the specified members with the specified scores
     /// to the sorted set stored at key.
     #[command(alias = "Zadd", alias = "ZADD")]
@@ -168,6 +177,10 @@ async fn main() -> mini_redis::Result<()> {
         Command::Del { keys } => {
             let removed = client.deletes(&keys).await?;
             println!("(integer) {removed:?}");
+        }
+        Command::Sadd { key, members } => {
+            let added = client.sadd(&key, members).await?;
+            println!("(integer) {added:?}");
         }
         Command::Zadd { key, entries } => {
             let mut iter = entries.into_iter();

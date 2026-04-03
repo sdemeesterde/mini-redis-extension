@@ -340,7 +340,7 @@ impl Client {
 
     /// Add member to the set associated key.
     ///
-    /// Return the number of key that were added.
+    /// Return the number of newly added members.
     ///
     /// # Examples
     ///

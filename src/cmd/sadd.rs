@@ -51,7 +51,7 @@ impl Sadd {
     /// to execute a received command.
     #[instrument(skip(self, db, dst))]
     pub(crate) async fn apply(self, db: &Db, dst: Option<&mut Connection>) -> crate::Result<()> {
-        let added = db.sadds(self.key, self.members);
+        let added = db.sadd(self.key, self.members);
 
         if let Some(dst) = dst {
             let response = Frame::Integer(added);
