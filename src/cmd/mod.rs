@@ -59,6 +59,7 @@ pub enum Command {
     Srem(Srem),
     Zadd(Zadd),
     Zrange(Zrange),
+    Zrem(Zrem),
     Unknown(Unknown),
 }
 
@@ -99,6 +100,7 @@ impl Command {
             "srem" => Command::Srem(Srem::parse_frames(&mut parse)?),
             "zadd" => Command::Zadd(Zadd::parse_frames(&mut parse)?),
             "zrange" => Command::Zrange(Zrange::parse_frames(&mut parse)?),
+            "zrem" => Command::Zrem(Zrem::parse_frames(&mut parse)?),
             _ => {
                 // The command is not recognized and an Unknown command is
                 // returned.
@@ -162,6 +164,7 @@ impl Command {
             Srem(cmd) => cmd.apply(db, dst).await,
             Zadd(cmd) => cmd.apply(db, dst).await,
             Zrange(cmd) => cmd.apply(db, dst).await,
+            Zrem(cmd) => cmd.apply(db, dst).await,
             // `Unsubscribe` cannot be applied. It may only be received from the
             // context of a `Subscribe` command.
             Unsubscribe(_) => Err("`Unsubscribe` is unsupported in this context".into()),
@@ -188,6 +191,7 @@ impl Command {
             Command::Srem(_) => "srem",
             Command::Zadd(_) => "zadd",
             Command::Zrange(_) => "zrange",
+            Command::Zrem(_) => "zrem",
             Command::Unknown(cmd) => cmd.get_name(),
         }
     }

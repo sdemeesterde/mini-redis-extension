@@ -441,13 +441,10 @@ impl Db {
         if let Some(skiplist) = skiplists.get_mut(&key) {
             if let Some(member_score) = member_scores.get_mut(&key) {
                 for member in members.into_iter() {
-                    let score_entry = ScoreEntry {
-                        // Can afford to panic as the score should be stored here.
-                        // Zadd is responsible for updating both hashmaps.
-                        score: *member_score.get(&member).unwrap(),
-                        member,
-                    };
-                    if skiplist.remove_by_value(&score_entry) {
+                    // Member must be present in both member_score & skiplist.
+                    // This condition must be enforced by zadd.
+                    if let Some(&score) = member_score.get(&member) {
+                        skiplist.remove_by_value(&ScoreEntry { score, member });
                         cnt += 1;
                     }
                 }

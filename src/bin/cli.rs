@@ -75,7 +75,7 @@ enum Command {
         member: String,
     },
     /// Remove member(s) from the set associated key
-    #[command(alias = "Srem", alias = "SADD")]
+    #[command(alias = "Srem", alias = "SREM")]
     Srem {
         /// Name of the key
         key: String,
@@ -114,6 +114,15 @@ enum Command {
         /// Optional LIMIT parameter
         /// Number of maximum selected elements
         count: Option<u64>,
+    },
+    /// Remove member(s) from the sorted set associated key
+    #[command(alias = "Zrem", alias = "ZREM")]
+    Zrem {
+        /// Name of the key
+        key: String,
+
+        /// Member(s) to remove
+        members: Vec<String>,
     },
     ///  Publisher to send a message to a specific channel.
     #[command(alias = "Publish", alias = "PUBLISH")]
@@ -234,6 +243,10 @@ async fn main() -> mini_redis::Result<()> {
                     println!("Score: {score:?} \t by: {member}");
                 }
             }
+        }
+        Command::Zrem { key, members } => {
+            let removed = client.zrem(&key, members).await?;
+            println!("(integer) {removed:?}");
         }
         Command::Publish { channel, message } => {
             client.publish(&channel, message).await?;
