@@ -112,14 +112,11 @@ enum Command {
 
         /// Optional REV
         /// Reverse the order of the output (decreasing)
-        rev: bool,
+        #[arg(value_parser = ["REV"], ignore_case = true)]
+        rev: Option<String>,
 
-        /// Optional LIMIT parameter
-        /// Offset from which the range will start based on first match
-        offset: Option<u64>,
-        /// Optional LIMIT parameter
-        /// Number of maximum selected elements
-        count: Option<u64>,
+        /// Optional [LIMIT offset count]
+        limit_args: Vec<String>,
     },
     /// Remove member(s) from the sorted set associated key
     #[command(alias = "Zrem", alias = "ZREM")]
@@ -242,10 +239,24 @@ async fn main() -> mini_redis::Result<()> {
             start,
             stop,
             rev,
-            offset,
-            count,
+            limit_args,
         } => {
-            let score_member = client.zrange(&key, start, stop, rev, offset, count).await?;
+            let mut iter = limit_args.iter();
+            let (offset, count) = match iter.next() {
+                None => (None, None),
+                Some(arg) if arg.eq_ignore_ascii_case("LIMIT") => {
+                    let off = iter.next().ok_or("LIMIT requires offset")?;
+                    let cnt = iter.next().ok_or("LIMIT requires count")?;
+
+                    (Some(off.parse()?), Some(cnt.parse()?))
+                }
+                Some(arg) => {
+                    return Err(format!("Unexpected argument: {}", arg).into());
+                }
+            };
+            let score_member = client
+                .zrange(&key, start, stop, rev.is_some(), offset, count)
+                .await?;
             if score_member.is_empty() {
                 println!("(nil)");
             } else {
