@@ -5,9 +5,7 @@ very good [Mini redis](https://github.com/tokio-rs/mini-redis) project.
 
 ## Next steps
 
-- Add command ZREM, SLENGTH (unoffical command)
-
-- Unsure:
+- Potential next steps:
   - Make a comparison with sqlite latency ?
   - LRU expiration policy or.. when memory max is reached ?
 
@@ -43,9 +41,11 @@ This Redis implementation
 * [DEL](https://redis.io/commands/del)
 * [SADD](https://redis.io/docs/latest/commands/sadd)
 * [SISMEMBER](https://redis.io/docs/latest/commands/sismember)
+* SLENGTH: Unofficial redis command
 * [SREM](https://redis.io/docs/latest/commands/srem)
 * [ZADD](https://redis.io/commands/zadd)
 * [ZRANGE](https://redis.io/commands/zrange)
+* [ZREM](https://redis.io/docs/latest/commands/zrem)
 * [PUBLISH](https://redis.io/commands/publish)
 * [SUBSCRIBE](https://redis.io/commands/subscribe)
 

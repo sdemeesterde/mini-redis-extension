@@ -74,6 +74,12 @@ enum Command {
         /// Member to check whether is contained
         member: String,
     },
+    /// Returns the number of member(s) associated key
+    #[command(alias = "Slength", alias = "SLENGTH")]
+    Slength {
+        /// Name of the key
+        key: String,
+    },
     /// Remove member(s) from the set associated key
     #[command(alias = "Srem", alias = "SREM")]
     Srem {
@@ -212,6 +218,10 @@ async fn main() -> mini_redis::Result<()> {
         Command::Sismember { key, member } => {
             let is_member = client.sismember(&key, &member).await?;
             println!("(integer) {is_member:?}");
+        }
+        Command::Slength { key } => {
+            let length = client.slength(&key).await?;
+            println!("(integer) {length:?}");
         }
         Command::Srem { key, members } => {
             let removed = client.srem(&key, members).await?;

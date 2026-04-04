@@ -302,6 +302,19 @@ impl Db {
         cnt
     }
 
+    /// Returns the length of "S" key associated structure,
+    /// i.e., the number of member(s) associated to given key
+    pub(crate) fn slength(&self, key: &str) -> u64 {
+        let state = self.shared.state.lock().unwrap();
+
+        let S { ref sets } = state.s;
+
+        if let Some(set) = sets.get(key) {
+            return set.len() as u64;
+        }
+        0
+    }
+
     /// Returns 1 if the member is present, 0 otherwise.
     pub(crate) fn sismember(&self, key: &str, member: &str) -> u64 {
         let state = self.shared.state.lock().unwrap();
@@ -443,7 +456,7 @@ impl Db {
                 for member in members.into_iter() {
                     // Member must be present in both member_score & skiplist.
                     // This condition must be enforced by zadd.
-                    if let Some(&score) = member_score.get(&member) {
+                    if let Some(score) = member_score.remove(&member) {
                         skiplist.remove_by_value(&ScoreEntry { score, member });
                         cnt += 1;
                     }

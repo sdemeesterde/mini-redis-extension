@@ -50,7 +50,7 @@ impl Zrange {
     ///
     /// # Format
     ///
-    /// Expects an array frame containing three entries.
+    /// Expects an array frame containing at least three entries.
     /// Start and Stop are expected to be unsigned integers.
     ///
     /// ```text

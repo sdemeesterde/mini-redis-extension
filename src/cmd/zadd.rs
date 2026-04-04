@@ -28,7 +28,7 @@ impl Zadd {
     ///
     /// # Format
     ///
-    /// Expects an array frame containing three entries.
+    /// Expects an array frame containing at least three entries.
     ///
     /// ```text
     /// ZADD key score member [score member]

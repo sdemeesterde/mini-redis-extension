@@ -23,12 +23,12 @@ impl Sismember {
     ///
     /// # Returns
     ///
-    /// Returns the `Sadd` value on success. If the frame is malformed,
+    /// Returns the `SISMEMBER` value on success. If the frame is malformed,
     /// `Err` is returned.
     ///
     /// # Format
     ///
-    /// Expects an array frame containing at least two frames.
+    /// Expects an array frame containing two frames.
     ///
     /// ```text
     /// SISMEMBER key member

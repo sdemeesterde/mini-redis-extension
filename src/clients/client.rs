@@ -3,7 +3,8 @@
 //! Provides an async connect and methods for issuing the supported commands.
 
 use crate::cmd::{
-    Del, Get, Ping, Publish, Sadd, Set, Sismember, Srem, Subscribe, Unsubscribe, Zadd, Zrange, Zrem,
+    Del, Get, Ping, Publish, Sadd, Set, Sismember, Slength, Srem, Subscribe, Unsubscribe, Zadd,
+    Zrange, Zrem,
 };
 use crate::{Connection, Frame};
 
@@ -378,6 +379,45 @@ impl Client {
         // Only Integer frame is accepted, telling how many keys were added
         match self.read_response().await? {
             Frame::Integer(added) => Ok(added as usize),
+            frame => Err(frame.to_error()),
+        }
+    }
+
+    /// Returns the length of member(s) associated key.
+    ///
+    /// # Examples
+    ///
+    /// Demonstrates basic usage.
+    ///
+    /// ```no_run
+    /// use mini_redis::clients::Client;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let mut client = Client::connect("localhost:6379").await.unwrap();
+    ///
+    ///     let key = "key_test";
+    ///
+    ///     let length = client.slength(key).await.unwrap();
+    ///     println!("Length: {:?}", length);
+    /// }
+    /// ```
+    #[instrument(skip(self))]
+    pub async fn slength(&mut self, key: &str) -> crate::Result<usize> {
+        let frame = Slength::new(key.to_string()).into_frame();
+
+        debug!(request = ?frame);
+
+        // Write the frame to the socket. This writes the full frame to the
+        // socket, waiting if necessary.
+        let resp_frame = frame.encode_resp()?;
+        self.connection.write_frame(resp_frame).await?;
+
+        // Wait for the response from the server
+        //
+        // Only Integer frame is accepted, telling how many keys were added
+        match self.read_response().await? {
+            Frame::Integer(length) => Ok(length as usize),
             frame => Err(frame.to_error()),
         }
     }
