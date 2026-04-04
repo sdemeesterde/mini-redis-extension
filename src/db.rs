@@ -35,13 +35,25 @@ pub(crate) struct Db {
     shared: Arc<Shared>,
 }
 
+/// S prefix in redis is used to designate sets.
+///
+/// Sets are associated to a key string.
 #[derive(Debug, Clone)]
 struct S {
     sets: HashMap<String, HashSet<String>>,
 }
 
+/// Z prefix in redis is used to designate sorted sets.
+///
+/// The sorted sets is implemented using a skiplist. Each entry of the skiplist
+/// is `ScoreEntry` which corresponds to a pair (score: u64, member: String).
+/// Only one member can be present in the skiplist at a time. Both (1, "player1")
+/// and (2, "player1") can not both exist in the same skiplist at the same time.
+///
+/// `member_scores` is used to construct `ScoreEntry` from the member value.
 #[derive(Debug, Clone)]
 struct Z {
+    /// Hashmap to retrieve the score of given member.
     member_scores: HashMap<String, HashMap<String, u64>>,
     /// The key-sorted set data. The sorted set is represented as `OrderedSkipList`
     /// for efficient write/read operation on the sorted set. The data struct offers
@@ -80,8 +92,10 @@ struct State {
     /// `std::collections::HashMap` works fine.
     entries: HashMap<String, Entry>,
 
+    /// Any "S" redis prefix command refers to this `S` struct
     s: S,
 
+    /// Any "Z" redis prefix command refers to this `Z` struct
     z: Z,
 
     /// The pub/sub key-space. Redis uses a **separate** key space for key-value
