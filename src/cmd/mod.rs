@@ -174,9 +174,18 @@ impl Command {
         }
     }
 
-    /// Returns true if the commmand modifies the db
+    /// Returns true if the commmand modifies the db.
+    /// Used to filter commands relevant for AOF.
     pub(crate) fn is_write_command(&self) -> bool {
-        matches!(self, Command::Set(_) | Command::Del(_) | Command::Zadd(_))
+        matches!(
+            self,
+            Command::Set(_)
+                | Command::Del(_)
+                | Command::Sadd(_)
+                | Command::Srem(_)
+                | Command::Zadd(_)
+                | Command::Zrem(_)
+        )
     }
 
     /// Returns the command name
