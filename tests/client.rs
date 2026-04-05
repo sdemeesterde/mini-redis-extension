@@ -88,7 +88,87 @@ async fn several_deletes() {
     assert_eq!(0, cnt);
 }
 
-/// Add and retrieve a score-member pair to a single key associated sorted set
+/// `S`: Add and retrieve length of underlying set.
+#[tokio::test]
+async fn sadd_slength() {
+    let (addr, _) = start_server().await;
+
+    let mut client = Client::connect(addr).await.unwrap();
+
+    let key = "key1";
+    let members = vec![String::from("player1")];
+
+    let added = client.sadd(key, members.clone()).await.unwrap();
+    assert_eq!(1, added);
+    let added = client.sadd(key, members).await.unwrap();
+    assert_eq!(0, added);
+
+    let length = client.slength(key).await.unwrap();
+    assert_eq!(1, length);
+
+    let members = vec![String::from("player2"), String::from("player3")];
+    let added = client.sadd(key, members).await.unwrap();
+
+    assert_eq!(2, added);
+
+    let length = client.slength(key).await.unwrap();
+    assert_eq!(3, length);
+}
+
+/// `S`: Add and ismember of underlying set.
+#[tokio::test]
+async fn sadd_sismember() {
+    let (addr, _) = start_server().await;
+
+    let mut client = Client::connect(addr).await.unwrap();
+
+    let key = "key1";
+    let members = vec![String::from("player2"), String::from("player3")];
+    client.sadd(key, members).await.unwrap();
+
+    let not_member = client.sismember(key, "player1").await.unwrap();
+    assert_eq!(0, not_member);
+
+    let is_member = client.sismember(key, "player2").await.unwrap();
+    assert_eq!(1, is_member);
+}
+
+/// `S`: Add and rem of underlying set.
+#[tokio::test]
+async fn sadd_srem() {
+    let (addr, _) = start_server().await;
+
+    let mut client = Client::connect(addr).await.unwrap();
+
+    let key = "key1";
+    let members = vec![
+        String::from("player1"),
+        String::from("player2"),
+        String::from("player3"),
+    ];
+    client.sadd(key, members).await.unwrap();
+
+    // Removed nothing
+    let members = vec![String::from("player4")];
+    let removed = client.srem(key, members).await.unwrap();
+    assert_eq!(0, removed);
+
+    // Removed one value
+    let members = vec![String::from("player1")];
+    let removed = client.srem(key, members).await.unwrap();
+    assert_eq!(1, removed);
+
+    // Removed several values
+    let members = vec![
+        String::from("player1"),
+        String::from("player2"),
+        String::from("player3"),
+    ];
+    let removed = client.srem(key, members).await.unwrap();
+    assert_eq!(2, removed);
+}
+
+/// `Z`: Add and retrieve a score-member pair to a single key associated sorted set
 #[tokio::test]
 async fn zadd_zrange_one_value() {
     let (addr, _) = start_server().await;
@@ -111,7 +191,42 @@ async fn zadd_zrange_one_value() {
     assert_eq!(entries.clone(), entries_resp);
 }
 
-/// Add and retrieve multiple score-member pairs to a
+/// `Z`: Add and remove score-member pairs to a single key associated sorted set
+#[tokio::test]
+async fn zadd_zrem() {
+    let (addr, _) = start_server().await;
+
+    let mut client = Client::connect(addr).await.unwrap();
+
+    let key = "key1";
+    let entries = vec![(5, String::from("player1"))];
+
+    let added = client.zadd(key, entries).await.unwrap();
+    assert_eq!(1, added);
+
+    let members = vec![String::from("player1")];
+    let removed = client.zrem(key, members).await.unwrap();
+    assert_eq!(1, removed);
+
+    let entries = vec![
+        (1, String::from("player1")),
+        (2, String::from("player2")),
+        (3, String::from("player3")),
+    ];
+
+    let added = client.zadd(key, entries).await.unwrap();
+    assert_eq!(3, added);
+
+    let members = vec![String::from("player1"), String::from("player2")];
+    let removed = client.zrem(key, members.clone()).await.unwrap();
+    assert_eq!(2, removed);
+
+    // Try remove a second time.
+    let removed = client.zrem(key, members).await.unwrap();
+    assert_eq!(0, removed);
+}
+
+/// `Z`: Add and retrieve multiple score-member pairs to a
 /// single key associated sorted set
 #[tokio::test]
 async fn zadd_zrange_several_values() {
@@ -148,7 +263,7 @@ async fn zadd_zrange_several_values() {
     );
 }
 
-/// Test optional arguments REV and LIMIT
+/// `Z`: Test optional arguments REV and LIMIT
 #[tokio::test]
 async fn zadd_zrange_optional_arguments() {
     let (addr, _) = start_server().await;
