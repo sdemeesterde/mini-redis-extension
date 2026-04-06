@@ -274,6 +274,21 @@ impl Db {
         }
     }
 
+    /// Returns the number of actually removed keys
+    ///
+    /// Remove each key, value pair from entries hashmap.
+    pub(crate) fn deletes(&self, keys: Vec<String>) -> u64 {
+        let mut state = self.shared.state.lock().unwrap();
+        let mut cnt = 0;
+
+        for key in keys.into_iter() {
+            if state.entries.remove(&key).is_some() {
+                cnt += 1;
+            }
+        }
+        cnt
+    }
+
     /// Returns the removed key associated value
     ///
     /// Remove the value associated with the key along with the optional
