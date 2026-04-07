@@ -153,15 +153,10 @@ impl BufferedClient {
     /// Set `key` to hold the given `value`.
     ///
     /// Same as `Client::set` but requests are **buffered** until the associated
-    /// connection has the ability to send the request
-    pub async fn set(
-        &mut self,
-        key: &str,
-        value: Bytes,
-        expiration: Option<Duration>,
-    ) -> Result<()> {
+    /// connection has the ability to send the request.
+    pub async fn set(&mut self, key: &str, value: Bytes) -> Result<()> {
         // Initialize a new `Set` command to send via the channel.
-        let set = Command::Set(key.into(), value, expiration);
+        let set = Command::Set(key.into(), value, None);
 
         // Initialize a new oneshot to be used to receive the response back from the connection.
         let (tx, rx) = oneshot::channel();
@@ -173,6 +168,216 @@ impl BufferedClient {
         match rx.await {
             Ok(Response::Set(res)) => res,
             Ok(_) => Err("Wrong response type received for SET.".into()),
+            Err(err) => Err(err.into()),
+        }
+    }
+
+    /// Set `key` to hold the given `value`.
+    ///
+    /// Same as `Client::set_expires` but requests are **buffered** until the associated
+    /// connection has the ability to send the request.
+    pub async fn set_expires(&mut self, key: &str, value: Bytes, expire: Duration) -> Result<()> {
+        // Initialize a new `Set` command to send via the channel.
+        let set = Command::Set(key.into(), value, Some(expire));
+
+        // Initialize a new oneshot to be used to receive the response back from the connection.
+        let (tx, rx) = oneshot::channel();
+
+        // Send the request
+        self.tx.send((set, tx)).await?;
+
+        // Await the response
+        match rx.await {
+            Ok(Response::Set(res)) => res,
+            Ok(_) => Err("Wrong response type received for SET.".into()),
+            Err(err) => Err(err.into()),
+        }
+    }
+
+    /// Deletes `keys`.
+    ///
+    /// Same as `Client::deletes` but requests are **buffered** until the associated
+    /// connection has the ability to send the request.
+    pub async fn deletes(&mut self, keys: Vec<String>) -> Result<usize> {
+        // Initialize a new `Del` command to send via the channel.
+        let del = Command::Del(keys);
+
+        // Initialize a new oneshot to be used to receive the response back from the connection.
+        let (tx, rx) = oneshot::channel();
+
+        // Send the request
+        self.tx.send((del, tx)).await?;
+
+        // Await the response
+        match rx.await {
+            Ok(Response::Del(res)) => res,
+            Ok(_) => Err("Wrong response type received for Del.".into()),
+            Err(err) => Err(err.into()),
+        }
+    }
+
+    /// Add `members` to `key` associated `S` structure.
+    ///
+    /// Same as `Client::sadd` but requests are **buffered** until the associated
+    /// connection has the ability to send the request.
+    pub async fn sadd(&mut self, key: &str, members: Vec<String>) -> Result<usize> {
+        // Initialize a new `Del` command to send via the channel.
+        let sadd = Command::Sadd(key.into(), members);
+
+        // Initialize a new oneshot to be used to receive the response back from the connection.
+        let (tx, rx) = oneshot::channel();
+
+        // Send the request
+        self.tx.send((sadd, tx)).await?;
+
+        // Await the response
+        match rx.await {
+            Ok(Response::Sadd(res)) => res,
+            Ok(_) => Err("Wrong response type received for Sadd.".into()),
+            Err(err) => Err(err.into()),
+        }
+    }
+
+    /// Check whether `key` associated `S` structure contains `member`.
+    ///
+    /// Same as `Client::sismember` but requests are **buffered** until the associated
+    /// connection has the ability to send the request.
+    pub async fn sismember(&mut self, key: &str, member: &str) -> Result<usize> {
+        // Initialize a new `Sismember` command to send via the channel.
+        let sismember = Command::Sismember(key.into(), member.into());
+
+        // Initialize a new oneshot to be used to receive the response back from the connection.
+        let (tx, rx) = oneshot::channel();
+
+        // Send the request
+        self.tx.send((sismember, tx)).await?;
+
+        // Await the response
+        match rx.await {
+            Ok(Response::Sismember(res)) => res,
+            Ok(_) => Err("Wrong response type received for Sismember.".into()),
+            Err(err) => Err(err.into()),
+        }
+    }
+
+    /// Returns the length of `key` associated `S` structure.
+    ///
+    /// Same as `Client::slength` but requests are **buffered** until the associated
+    /// connection has the ability to send the request.
+    pub async fn slength(&mut self, key: &str) -> Result<usize> {
+        // Initialize a new `Slength` command to send via the channel.
+        let slength = Command::Slength(key.into());
+
+        // Initialize a new oneshot to be used to receive the response back from the connection.
+        let (tx, rx) = oneshot::channel();
+
+        // Send the request
+        self.tx.send((slength, tx)).await?;
+
+        // Await the response
+        match rx.await {
+            Ok(Response::Slength(res)) => res,
+            Ok(_) => Err("Wrong response type received for Slength.".into()),
+            Err(err) => Err(err.into()),
+        }
+    }
+
+    /// Removes `members` from `key` associated `S` structure.
+    ///
+    /// Same as `Client::srem` but requests are **buffered** until the associated
+    /// connection has the ability to send the request.
+    pub async fn srem(&mut self, key: &str, members: Vec<String>) -> Result<usize> {
+        // Initialize a new `Srem` command to send via the channel.
+        let srem = Command::Srem(key.into(), members);
+
+        // Initialize a new oneshot to be used to receive the response back from the connection.
+        let (tx, rx) = oneshot::channel();
+
+        // Send the request
+        self.tx.send((srem, tx)).await?;
+
+        // Await the response
+        match rx.await {
+            Ok(Response::Srem(res)) => res,
+            Ok(_) => Err("Wrong response type received for Srem.".into()),
+            Err(err) => Err(err.into()),
+        }
+    }
+
+    /// Add `entries` to `key` associated `Z` structure.
+    ///
+    /// Same as `Client::zadd` but requests are **buffered** until the associated
+    /// connection has the ability to send the request.
+    pub async fn zadd(&mut self, key: &str, entries: Vec<(u64, String)>) -> Result<usize> {
+        // Initialize a new `Zadd` command to send via the channel.
+        let zadd = Command::Zadd(key.into(), entries);
+
+        // Initialize a new oneshot to be used to receive the response back from the connection.
+        let (tx, rx) = oneshot::channel();
+
+        // Send the request
+        self.tx.send((zadd, tx)).await?;
+
+        // Await the response
+        match rx.await {
+            Ok(Response::Zadd(res)) => res,
+            Ok(_) => Err("Wrong response type received for Zadd.".into()),
+            Err(err) => Err(err.into()),
+        }
+    }
+
+    /// Retrieve the entries (score: u64, member: String) `key` associated values,
+    /// satisfying `start` <= `score` <= `stops`.
+    /// `rev` will reverse the order of value.
+    /// `offset` the number of valid entries to discard.
+    /// `count` sets a maximum value to return (all following values are discarded).
+    ///
+    /// Same as `Client::zrange` but requests are **buffered** until the associated
+    /// connection has the ability to send the request.
+    pub async fn zrange(
+        &mut self,
+        key: &str,
+        start: u64,
+        stop: u64,
+        rev: bool,
+        offset: Option<u64>,
+        count: Option<u64>,
+    ) -> Result<Vec<(u64, String)>> {
+        // Initialize a new `Zrange` command to send via the channel.
+        let zrange = Command::Zrange(key.into(), start, stop, rev, offset, count);
+
+        // Initialize a new oneshot to be used to receive the response back from the connection.
+        let (tx, rx) = oneshot::channel();
+
+        // Send the request
+        self.tx.send((zrange, tx)).await?;
+
+        // Await the response
+        match rx.await {
+            Ok(Response::Zrange(res)) => res,
+            Ok(_) => Err("Wrong response type received for Zrange.".into()),
+            Err(err) => Err(err.into()),
+        }
+    }
+
+    /// Remove `members` to `key` associated `Z` structure.
+    ///
+    /// Same as `Client::zrem` but requests are **buffered** until the associated
+    /// connection has the ability to send the request.
+    pub async fn zrem(&mut self, key: &str, members: Vec<String>) -> Result<usize> {
+        // Initialize a new `Zrem` command to send via the channel.
+        let zrem = Command::Zrem(key.into(), members);
+
+        // Initialize a new oneshot to be used to receive the response back from the connection.
+        let (tx, rx) = oneshot::channel();
+
+        // Send the request
+        self.tx.send((zrem, tx)).await?;
+
+        // Await the response
+        match rx.await {
+            Ok(Response::Zrem(res)) => res,
+            Ok(_) => Err("Wrong response type received for Zrem.".into()),
             Err(err) => Err(err.into()),
         }
     }
