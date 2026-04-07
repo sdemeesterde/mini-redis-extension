@@ -12,10 +12,8 @@ pub struct Del {
 }
 
 impl Del {
-    pub fn new(keys: &[String]) -> Del {
-        Del {
-            keys: keys.to_vec(),
-        }
+    pub fn new(keys: Vec<String>) -> Del {
+        Del { keys }
     }
 
     /// Parse a `Del` instance from a received frame.

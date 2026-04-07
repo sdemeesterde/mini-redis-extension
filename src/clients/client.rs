@@ -297,7 +297,7 @@ impl Client {
     /// ```
     #[instrument(skip(self))]
     pub async fn delete(&mut self, key: &str) -> crate::Result<bool> {
-        Ok(self.deletes(&[key.to_string()]).await? == 1)
+        Ok(self.deletes(vec![key.to_string()]).await? == 1)
     }
 
     /// Delete the key-value pair(s).
@@ -317,12 +317,12 @@ impl Client {
     ///
     ///     let to_remove = vec![String::from("foo1"), String::from("foo2")];
     ///
-    ///     let removed = client.deletes(&to_remove).await.unwrap();
+    ///     let removed = client.deletes(to_remove).await.unwrap();
     ///     println!("Number of key removed: {:?}", removed);
     /// }
     /// ```
     #[instrument(skip(self))]
-    pub async fn deletes(&mut self, keys: &[String]) -> crate::Result<usize> {
+    pub async fn deletes(&mut self, keys: Vec<String>) -> crate::Result<usize> {
         let frame = Del::new(keys).into_frame();
 
         debug!(request = ?frame);

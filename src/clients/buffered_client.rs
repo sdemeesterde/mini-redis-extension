@@ -72,7 +72,7 @@ async fn run(mut client: Client, mut rx: Receiver<Message>) {
                     Response::Set(client.set(&key, value).await)
                 }
             }
-            Command::Del(keys) => Response::Del(client.deletes(&keys).await),
+            Command::Del(keys) => Response::Del(client.deletes(keys).await),
             Command::Sadd(key, members) => Response::Sadd(client.sadd(&key, members).await),
             Command::Sismember(key, member) => {
                 Response::Sismember(client.sismember(&key, &member).await)
@@ -221,7 +221,7 @@ impl BufferedClient {
     /// Same as `Client::sadd` but requests are **buffered** until the associated
     /// connection has the ability to send the request.
     pub async fn sadd(&mut self, key: &str, members: Vec<String>) -> Result<usize> {
-        // Initialize a new `Del` command to send via the channel.
+        // Initialize a new `Sadd` command to send via the channel.
         let sadd = Command::Sadd(key.into(), members);
 
         // Initialize a new oneshot to be used to receive the response back from the connection.

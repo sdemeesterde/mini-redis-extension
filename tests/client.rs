@@ -67,24 +67,17 @@ async fn several_deletes() {
     client.set("foo1", "bar1".into()).await.unwrap();
     client.set("foo2", "bar2".into()).await.unwrap();
 
-    let cnt = client
-        .deletes(&[String::from("foo1"), String::from("foo2")])
-        .await
-        .unwrap();
+    let members = vec![String::from("foo1"), String::from("foo2")];
+
+    let cnt = client.deletes(members.clone()).await.unwrap();
     assert_eq!(2, cnt);
 
     client.set("foo1", "bar1".into()).await.unwrap();
 
-    let cnt = client
-        .deletes(&[String::from("foo1"), String::from("foo2")])
-        .await
-        .unwrap();
+    let cnt = client.deletes(members.clone()).await.unwrap();
     assert_eq!(1, cnt);
 
-    let cnt = client
-        .deletes(&[String::from("foo1"), String::from("foo2")])
-        .await
-        .unwrap();
+    let cnt = client.deletes(members).await.unwrap();
     assert_eq!(0, cnt);
 }
 
