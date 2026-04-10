@@ -60,7 +60,7 @@ impl BlockingClient {
     /// # Examples
     ///
     /// ```no_run
-    /// use mini_redis::clients::BlockingClient;
+    /// use miniredis::clients::BlockingClient;
     ///
     /// {
     ///     let client = match BlockingClient::connect("localhost:6379") {
@@ -89,7 +89,7 @@ impl BlockingClient {
     /// Demonstrates basic usage.
     ///
     /// ```no_run
-    /// use mini_redis::clients::BlockingClient;
+    /// use miniredis::clients::BlockingClient;
     ///
     /// {
     ///     let mut client = BlockingClient::connect("localhost:6379").unwrap();
@@ -115,7 +115,7 @@ impl BlockingClient {
     /// Demonstrates basic usage.
     ///
     /// ```no_run
-    /// use mini_redis::clients::BlockingClient;
+    /// use miniredis::clients::BlockingClient;
     ///
     /// {
     ///     let mut client = BlockingClient::connect("localhost:6379").unwrap();
@@ -149,7 +149,7 @@ impl BlockingClient {
     /// favorable.
     ///
     /// ```no_run
-    /// use mini_redis::clients::BlockingClient;
+    /// use miniredis::clients::BlockingClient;
     /// use std::thread;
     /// use std::time::Duration;
     ///
@@ -191,7 +191,7 @@ impl BlockingClient {
     /// Demonstrates basic usage.
     ///
     /// ```no_run
-    /// use mini_redis::clients::BlockingClient;
+    /// use miniredis::clients::BlockingClient;
     ///
     /// {
     ///     let mut client = BlockingClient::connect("localhost:6379").unwrap();

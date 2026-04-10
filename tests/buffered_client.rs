@@ -1,4 +1,4 @@
-use mini_redis::{
+use miniredis::{
     clients::{BufferedClient, Client},
     server,
 };
@@ -15,11 +15,11 @@ async fn pool_key_value_get_set() {
     let (addr, _) = start_server().await;
 
     let client = Client::connect(addr).await.unwrap();
-    let mut client = BufferedClient::buffer(client);
+    let buffered_client = BufferedClient::buffer(client);
 
-    client.set("hello", "world".into()).await.unwrap();
+    buffered_client.set("hello", "world".into()).await.unwrap();
 
-    let value = client.get("hello").await.unwrap().unwrap();
+    let value = buffered_client.get("hello").await.unwrap().unwrap();
     assert_eq!(b"world", &value[..])
 }
 
@@ -30,14 +30,17 @@ async fn single_delete() {
     let (addr, _) = start_server().await;
 
     let client = Client::connect(addr).await.unwrap();
-    let mut client = BufferedClient::buffer(client);
+    let buffered_client = BufferedClient::buffer(client);
 
-    client.set("foo", "bar".into()).await.unwrap();
+    buffered_client.set("foo", "bar".into()).await.unwrap();
 
-    let is_present = client.deletes(vec!["foo".into()]).await.unwrap();
+    let is_present = buffered_client.deletes(vec!["foo".into()]).await.unwrap();
     assert_eq!(1, is_present);
 
-    let is_not_present = client.deletes(vec!["unknown_key".into()]).await.unwrap();
+    let is_not_present = buffered_client
+        .deletes(vec!["unknown_key".into()])
+        .await
+        .unwrap();
     assert_eq!(0, is_not_present);
 }
 
@@ -50,22 +53,22 @@ async fn several_deletes() {
     let (addr, _) = start_server().await;
 
     let client = Client::connect(addr).await.unwrap();
-    let mut client = BufferedClient::buffer(client);
+    let buffered_client = BufferedClient::buffer(client);
 
-    client.set("foo1", "bar1".into()).await.unwrap();
-    client.set("foo2", "bar2".into()).await.unwrap();
+    buffered_client.set("foo1", "bar1".into()).await.unwrap();
+    buffered_client.set("foo2", "bar2".into()).await.unwrap();
 
     let members = vec![String::from("foo1"), String::from("foo2")];
 
-    let cnt = client.deletes(members.clone()).await.unwrap();
+    let cnt = buffered_client.deletes(members.clone()).await.unwrap();
     assert_eq!(2, cnt);
 
-    client.set("foo1", "bar1".into()).await.unwrap();
+    buffered_client.set("foo1", "bar1".into()).await.unwrap();
 
-    let cnt = client.deletes(members.clone()).await.unwrap();
+    let cnt = buffered_client.deletes(members.clone()).await.unwrap();
     assert_eq!(1, cnt);
 
-    let cnt = client.deletes(members).await.unwrap();
+    let cnt = buffered_client.deletes(members).await.unwrap();
     assert_eq!(0, cnt);
 }
 
@@ -75,26 +78,26 @@ async fn sadd_slength() {
     let (addr, _) = start_server().await;
 
     let client = Client::connect(addr).await.unwrap();
-    let mut client = BufferedClient::buffer(client);
+    let buffered_client = BufferedClient::buffer(client);
 
     let key = "key1";
     let members = vec![String::from("player1")];
 
-    let added = client.sadd(key, members.clone()).await.unwrap();
+    let added = buffered_client.sadd(key, members.clone()).await.unwrap();
     assert_eq!(1, added);
-    let added = client.sadd(key, members).await.unwrap();
+    let added = buffered_client.sadd(key, members).await.unwrap();
     assert_eq!(0, added);
 
-    let length = client.slength(key).await.unwrap();
-    assert_eq!(1, length);
+    let length = buffered_client.slength(key).await.unwrap();
+    assert_eq!(Some(1), length);
 
     let members = vec![String::from("player2"), String::from("player3")];
-    let added = client.sadd(key, members).await.unwrap();
+    let added = buffered_client.sadd(key, members).await.unwrap();
 
     assert_eq!(2, added);
 
-    let length = client.slength(key).await.unwrap();
-    assert_eq!(3, length);
+    let length = buffered_client.slength(key).await.unwrap();
+    assert_eq!(Some(3), length);
 }
 
 /// `S`: Add and ismember of underlying set.
@@ -103,16 +106,16 @@ async fn sadd_sismember() {
     let (addr, _) = start_server().await;
 
     let client = Client::connect(addr).await.unwrap();
-    let mut client = BufferedClient::buffer(client);
+    let buffered_client = BufferedClient::buffer(client);
 
     let key = "key1";
     let members = vec![String::from("player2"), String::from("player3")];
-    client.sadd(key, members).await.unwrap();
+    buffered_client.sadd(key, members).await.unwrap();
 
-    let not_member = client.sismember(key, "player1").await.unwrap();
+    let not_member = buffered_client.sismember(key, "player1").await.unwrap();
     assert_eq!(0, not_member);
 
-    let is_member = client.sismember(key, "player2").await.unwrap();
+    let is_member = buffered_client.sismember(key, "player2").await.unwrap();
     assert_eq!(1, is_member);
 }
 
@@ -122,7 +125,7 @@ async fn sadd_srem() {
     let (addr, _) = start_server().await;
 
     let client = Client::connect(addr).await.unwrap();
-    let mut client = BufferedClient::buffer(client);
+    let buffered_client = BufferedClient::buffer(client);
 
     let key = "key1";
     let members = vec![
@@ -130,16 +133,16 @@ async fn sadd_srem() {
         String::from("player2"),
         String::from("player3"),
     ];
-    client.sadd(key, members).await.unwrap();
+    buffered_client.sadd(key, members).await.unwrap();
 
     // Removed nothing
     let members = vec![String::from("player4")];
-    let removed = client.srem(key, members).await.unwrap();
+    let removed = buffered_client.srem(key, members).await.unwrap();
     assert_eq!(0, removed);
 
     // Removed one value
     let members = vec![String::from("player1")];
-    let removed = client.srem(key, members).await.unwrap();
+    let removed = buffered_client.srem(key, members).await.unwrap();
     assert_eq!(1, removed);
 
     // Removed several values
@@ -148,7 +151,7 @@ async fn sadd_srem() {
         String::from("player2"),
         String::from("player3"),
     ];
-    let removed = client.srem(key, members).await.unwrap();
+    let removed = buffered_client.srem(key, members).await.unwrap();
     assert_eq!(2, removed);
 }
 
@@ -158,21 +161,30 @@ async fn zadd_zrange_one_value() {
     let (addr, _) = start_server().await;
 
     let client = Client::connect(addr).await.unwrap();
-    let mut client = BufferedClient::buffer(client);
+    let buffered_client = BufferedClient::buffer(client);
 
     let key = "key1";
     let entries = vec![(5, String::from("player1"))];
 
-    let added = client.zadd(key, entries.clone()).await.unwrap();
+    let added = buffered_client.zadd(key, entries.clone()).await.unwrap();
     assert_eq!(1, added);
 
-    let entries_resp = client.zrange(key, 5, 5, false, None, None).await.unwrap();
+    let entries_resp = buffered_client
+        .zrange(key, 5, 5, false, None, None)
+        .await
+        .unwrap();
     assert_eq!(entries.clone(), entries_resp);
 
-    let entries_resp = client.zrange(key, 0, 5, false, None, None).await.unwrap();
+    let entries_resp = buffered_client
+        .zrange(key, 0, 5, false, None, None)
+        .await
+        .unwrap();
     assert_eq!(entries.clone(), entries_resp);
 
-    let entries_resp = client.zrange(key, 0, 10, false, None, None).await.unwrap();
+    let entries_resp = buffered_client
+        .zrange(key, 0, 10, false, None, None)
+        .await
+        .unwrap();
     assert_eq!(entries.clone(), entries_resp);
 }
 
@@ -182,16 +194,16 @@ async fn zadd_zrem() {
     let (addr, _) = start_server().await;
 
     let client = Client::connect(addr).await.unwrap();
-    let mut client = BufferedClient::buffer(client);
+    let buffered_client = BufferedClient::buffer(client);
 
     let key = "key1";
     let entries = vec![(5, String::from("player1"))];
 
-    let added = client.zadd(key, entries).await.unwrap();
+    let added = buffered_client.zadd(key, entries).await.unwrap();
     assert_eq!(1, added);
 
     let members = vec![String::from("player1")];
-    let removed = client.zrem(key, members).await.unwrap();
+    let removed = buffered_client.zrem(key, members).await.unwrap();
     assert_eq!(1, removed);
 
     let entries = vec![
@@ -200,15 +212,15 @@ async fn zadd_zrem() {
         (3, String::from("player3")),
     ];
 
-    let added = client.zadd(key, entries).await.unwrap();
+    let added = buffered_client.zadd(key, entries).await.unwrap();
     assert_eq!(3, added);
 
     let members = vec![String::from("player1"), String::from("player2")];
-    let removed = client.zrem(key, members.clone()).await.unwrap();
+    let removed = buffered_client.zrem(key, members.clone()).await.unwrap();
     assert_eq!(2, removed);
 
     // Try remove a second time.
-    let removed = client.zrem(key, members).await.unwrap();
+    let removed = buffered_client.zrem(key, members).await.unwrap();
     assert_eq!(0, removed);
 }
 
@@ -219,7 +231,7 @@ async fn zadd_zrange_several_values() {
     let (addr, _) = start_server().await;
 
     let client = Client::connect(addr).await.unwrap();
-    let mut client = BufferedClient::buffer(client);
+    let buffered_client = BufferedClient::buffer(client);
 
     let key = "key";
     let entries = vec![
@@ -228,22 +240,31 @@ async fn zadd_zrange_several_values() {
         (10, String::from("player3")),
     ];
 
-    let added = client.zadd(key, entries.clone()).await.unwrap();
+    let added = buffered_client.zadd(key, entries.clone()).await.unwrap();
     assert_eq!(3, added);
 
-    let entries_resp = client.zrange(key, 0, 0, false, None, None).await.unwrap();
+    let entries_resp = buffered_client
+        .zrange(key, 0, 0, false, None, None)
+        .await
+        .unwrap();
     assert_eq!(0, entries_resp.len());
 
-    let entries_resp = client
+    let entries_resp = buffered_client
         .zrange("doesnt_exist", 0, 15, false, None, None)
         .await
         .unwrap();
     assert_eq!(0, entries_resp.len());
 
-    let entries_resp = client.zrange(key, 0, 15, false, None, None).await.unwrap();
+    let entries_resp = buffered_client
+        .zrange(key, 0, 15, false, None, None)
+        .await
+        .unwrap();
     assert_eq!(entries, entries_resp);
 
-    let entries_resp = client.zrange(key, 5, 15, false, None, None).await.unwrap();
+    let entries_resp = buffered_client
+        .zrange(key, 5, 15, false, None, None)
+        .await
+        .unwrap();
     assert_eq!(
         vec![(5, String::from("player2")), (10, String::from("player3")),],
         entries_resp
@@ -256,7 +277,7 @@ async fn zadd_zrange_optional_arguments() {
     let (addr, _) = start_server().await;
 
     let client = Client::connect(addr).await.unwrap();
-    let mut client = BufferedClient::buffer(client);
+    let buffered_client = BufferedClient::buffer(client);
 
     let key = "key";
     let entries = vec![
@@ -265,10 +286,13 @@ async fn zadd_zrange_optional_arguments() {
         (10, String::from("player3")),
     ];
 
-    let added = client.zadd(key, entries.clone()).await.unwrap();
+    let added = buffered_client.zadd(key, entries.clone()).await.unwrap();
     assert_eq!(3, added);
 
-    let entries_resp = client.zrange(key, 0, 10, true, None, None).await.unwrap();
+    let entries_resp = buffered_client
+        .zrange(key, 0, 10, true, None, None)
+        .await
+        .unwrap();
     assert_eq!(
         entries_resp,
         entries
@@ -278,7 +302,7 @@ async fn zadd_zrange_optional_arguments() {
             .collect::<Vec<(u64, String)>>()
     );
 
-    let entries_resp = client
+    let entries_resp = buffered_client
         .zrange(key, 0, 15, true, Some(1), Some(2))
         .await
         .unwrap();
@@ -288,7 +312,7 @@ async fn zadd_zrange_optional_arguments() {
     );
 
     // Count limit higher than number of elements
-    let entries_resp = client
+    let entries_resp = buffered_client
         .zrange(key, 0, 15, true, Some(1), Some(10))
         .await
         .unwrap();

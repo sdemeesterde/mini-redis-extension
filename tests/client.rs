@@ -1,4 +1,4 @@
-use mini_redis::{clients::Client, server};
+use miniredis::{clients::Client, server};
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
@@ -97,7 +97,7 @@ async fn sadd_slength() {
     assert_eq!(0, added);
 
     let length = client.slength(key).await.unwrap();
-    assert_eq!(1, length);
+    assert_eq!(Some(1), length);
 
     let members = vec![String::from("player2"), String::from("player3")];
     let added = client.sadd(key, members).await.unwrap();
@@ -105,7 +105,7 @@ async fn sadd_slength() {
     assert_eq!(2, added);
 
     let length = client.slength(key).await.unwrap();
-    assert_eq!(3, length);
+    assert_eq!(Some(3), length);
 }
 
 /// `S`: Add and ismember of underlying set.

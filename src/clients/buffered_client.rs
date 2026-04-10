@@ -26,6 +26,8 @@ enum Command {
     Srem(String, Vec<String>),
     // key, (score, member)
     Zadd(String, Vec<(u64, String)>),
+    // key, member
+    Zscore(String, String),
     // key, start, stop, rev, offset, count
     Zrange(String, u64, u64, bool, Option<u64>, Option<u64>),
     // key, members
@@ -39,9 +41,10 @@ enum Response {
     Del(Result<usize>),
     Sadd(Result<usize>),
     Sismember(Result<usize>),
-    Slength(Result<usize>),
+    Slength(Result<Option<usize>>),
     Srem(Result<usize>),
     Zadd(Result<usize>),
+    Zscore(Result<Option<usize>>),
     Zrange(Result<Vec<(u64, String)>>),
     Zrem(Result<usize>),
 }
@@ -80,6 +83,7 @@ async fn run(mut client: Client, mut rx: Receiver<Message>) {
             Command::Slength(key) => Response::Slength(client.slength(&key).await),
             Command::Srem(key, members) => Response::Srem(client.srem(&key, members).await),
             Command::Zadd(key, entries) => Response::Zadd(client.zadd(&key, entries).await),
+            Command::Zscore(key, member) => Response::Zscore(client.zscore(&key, &member).await),
             Command::Zrange(key, start, stop, rev, offset, count) => {
                 Response::Zrange(client.zrange(&key, start, stop, rev, offset, count).await)
             }
@@ -132,7 +136,7 @@ impl BufferedClient {
     ///
     /// Same as `Client::get` but requests are **buffered** until the associated
     /// connection has the ability to send the request.
-    pub async fn get(&mut self, key: &str) -> Result<Option<Bytes>> {
+    pub async fn get(&self, key: &str) -> Result<Option<Bytes>> {
         // Initialize a new `Get` command to send via the channel.
         let get = Command::Get(key.into());
 
@@ -154,7 +158,7 @@ impl BufferedClient {
     ///
     /// Same as `Client::set` but requests are **buffered** until the associated
     /// connection has the ability to send the request.
-    pub async fn set(&mut self, key: &str, value: Bytes) -> Result<()> {
+    pub async fn set(&self, key: &str, value: Bytes) -> Result<()> {
         // Initialize a new `Set` command to send via the channel.
         let set = Command::Set(key.into(), value, None);
 
@@ -176,7 +180,7 @@ impl BufferedClient {
     ///
     /// Same as `Client::set_expires` but requests are **buffered** until the associated
     /// connection has the ability to send the request.
-    pub async fn set_expires(&mut self, key: &str, value: Bytes, expire: Duration) -> Result<()> {
+    pub async fn set_expires(&self, key: &str, value: Bytes, expire: Duration) -> Result<()> {
         // Initialize a new `Set` command to send via the channel.
         let set = Command::Set(key.into(), value, Some(expire));
 
@@ -198,7 +202,7 @@ impl BufferedClient {
     ///
     /// Same as `Client::deletes` but requests are **buffered** until the associated
     /// connection has the ability to send the request.
-    pub async fn deletes(&mut self, keys: Vec<String>) -> Result<usize> {
+    pub async fn deletes(&self, keys: Vec<String>) -> Result<usize> {
         // Initialize a new `Del` command to send via the channel.
         let del = Command::Del(keys);
 
@@ -220,7 +224,7 @@ impl BufferedClient {
     ///
     /// Same as `Client::sadd` but requests are **buffered** until the associated
     /// connection has the ability to send the request.
-    pub async fn sadd(&mut self, key: &str, members: Vec<String>) -> Result<usize> {
+    pub async fn sadd(&self, key: &str, members: Vec<String>) -> Result<usize> {
         // Initialize a new `Sadd` command to send via the channel.
         let sadd = Command::Sadd(key.into(), members);
 
@@ -242,7 +246,7 @@ impl BufferedClient {
     ///
     /// Same as `Client::sismember` but requests are **buffered** until the associated
     /// connection has the ability to send the request.
-    pub async fn sismember(&mut self, key: &str, member: &str) -> Result<usize> {
+    pub async fn sismember(&self, key: &str, member: &str) -> Result<usize> {
         // Initialize a new `Sismember` command to send via the channel.
         let sismember = Command::Sismember(key.into(), member.into());
 
@@ -264,7 +268,7 @@ impl BufferedClient {
     ///
     /// Same as `Client::slength` but requests are **buffered** until the associated
     /// connection has the ability to send the request.
-    pub async fn slength(&mut self, key: &str) -> Result<usize> {
+    pub async fn slength(&self, key: &str) -> Result<Option<usize>> {
         // Initialize a new `Slength` command to send via the channel.
         let slength = Command::Slength(key.into());
 
@@ -286,7 +290,7 @@ impl BufferedClient {
     ///
     /// Same as `Client::srem` but requests are **buffered** until the associated
     /// connection has the ability to send the request.
-    pub async fn srem(&mut self, key: &str, members: Vec<String>) -> Result<usize> {
+    pub async fn srem(&self, key: &str, members: Vec<String>) -> Result<usize> {
         // Initialize a new `Srem` command to send via the channel.
         let srem = Command::Srem(key.into(), members);
 
@@ -308,7 +312,7 @@ impl BufferedClient {
     ///
     /// Same as `Client::zadd` but requests are **buffered** until the associated
     /// connection has the ability to send the request.
-    pub async fn zadd(&mut self, key: &str, entries: Vec<(u64, String)>) -> Result<usize> {
+    pub async fn zadd(&self, key: &str, entries: Vec<(u64, String)>) -> Result<usize> {
         // Initialize a new `Zadd` command to send via the channel.
         let zadd = Command::Zadd(key.into(), entries);
 
@@ -326,6 +330,24 @@ impl BufferedClient {
         }
     }
 
+    /// Get the score of `member` from `key` associated `Z` structure.
+    pub async fn zscore(&self, key: &str, member: &str) -> Result<Option<usize>> {
+        // Initialize a new `Zscore` command to send via the channel.
+        let zscore = Command::Zscore(key.into(), member.into());
+
+        // Initialize a new oneshot to be used to receive the response back from the connection.
+        let (tx, rx) = oneshot::channel();
+
+        // Send the request
+        self.tx.send((zscore, tx)).await?;
+
+        match rx.await {
+            Ok(Response::Zscore(res)) => res,
+            Ok(_) => Err("Wrong response type received for Zscore.".into()),
+            Err(err) => Err(err.into()),
+        }
+    }
+
     /// Retrieve the entries (score: u64, member: String) `key` associated values,
     /// satisfying `start` <= `score` <= `stops`.
     /// `rev` will reverse the order of value.
@@ -335,7 +357,7 @@ impl BufferedClient {
     /// Same as `Client::zrange` but requests are **buffered** until the associated
     /// connection has the ability to send the request.
     pub async fn zrange(
-        &mut self,
+        &self,
         key: &str,
         start: u64,
         stop: u64,
@@ -364,7 +386,7 @@ impl BufferedClient {
     ///
     /// Same as `Client::zrem` but requests are **buffered** until the associated
     /// connection has the ability to send the request.
-    pub async fn zrem(&mut self, key: &str, members: Vec<String>) -> Result<usize> {
+    pub async fn zrem(&self, key: &str, members: Vec<String>) -> Result<usize> {
         // Initialize a new `Zrem` command to send via the channel.
         let zrem = Command::Zrem(key.into(), members);
 

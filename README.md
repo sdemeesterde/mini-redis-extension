@@ -1,4 +1,4 @@
-# mini-redis extension
+# miniredis extension
 
 This project implements several extension features to the
 very good [Mini redis](https://github.com/tokio-rs/mini-redis) project.
@@ -17,7 +17,7 @@ Terminal 1 (without using the cli):
 ```
 Terminal 2 (using the cli):
 ```
-cargo run --bin mini-redis-cli get foo
+cargo run --bin miniredis-cli get foo
 "bar"
 ```
 ## Demo - A simple game

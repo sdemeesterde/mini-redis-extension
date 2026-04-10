@@ -2,7 +2,7 @@ use bytes::Bytes;
 use skiplist::ordered_skip_list::OrderedSkipList;
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::{Arc, Mutex};
-use tokio::sync::{broadcast, Notify};
+use tokio::sync::{Notify, broadcast};
 use tokio::time::{self, Duration, Instant};
 use tracing::debug;
 
@@ -99,7 +99,7 @@ struct State {
     z: Z,
 
     /// The pub/sub key-space. Redis uses a **separate** key space for key-value
-    /// and pub/sub. `mini-redis` handles this by using a separate `HashMap`.
+    /// and pub/sub. `miniredis` handles this by using a separate `HashMap`.
     pub_sub: HashMap<String, broadcast::Sender<Bytes>>,
 
     /// Tracks key TTLs.
@@ -319,15 +319,15 @@ impl Db {
 
     /// Returns the length of "S" key associated structure,
     /// i.e., the number of member(s) associated to given key
-    pub(crate) fn slength(&self, key: &str) -> u64 {
+    pub(crate) fn slength(&self, key: &str) -> Option<u64> {
         let state = self.shared.state.lock().unwrap();
 
         let S { ref sets } = state.s;
 
-        if let Some(set) = sets.get(key) {
-            return set.len() as u64;
+        match sets.get(key) {
+            Some(set) => Some(set.len() as u64),
+            None => None,
         }
-        0
     }
 
     /// Returns 1 if the member is present, 0 otherwise.
@@ -398,6 +398,24 @@ impl Db {
             cnt += 1;
         }
         cnt as u64
+    }
+
+    /// Returns the score of member associated key z struct.
+    pub(crate) fn zscore(&self, key: String, member: String) -> Option<u64> {
+        let state = self.shared.state.lock().unwrap();
+
+        let Z {
+            ref member_scores, ..
+        } = state.z;
+
+        if let Some(member_score) = member_scores.get(&key) {
+            match member_score.get(&member) {
+                Some(&score) => Some(score),
+                None => None,
+            }
+        } else {
+            None
+        }
     }
 
     /// Returns the specified range of elements in the sorted set stored at key.

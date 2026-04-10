@@ -31,6 +31,9 @@ pub use srem::Srem;
 mod zadd;
 pub use zadd::Zadd;
 
+mod zscore;
+pub use zscore::Zscore;
+
 mod zrange;
 pub use zrange::Zrange;
 
@@ -59,6 +62,7 @@ pub enum Command {
     Slength(Slength),
     Srem(Srem),
     Zadd(Zadd),
+    Zscore(Zscore),
     Zrange(Zrange),
     Zrem(Zrem),
     Unknown(Unknown),
@@ -67,7 +71,7 @@ pub enum Command {
 impl Command {
     /// Parse a command from a received frame.
     ///
-    /// The `Frame` must represent a Redis command supported by `mini-redis` and
+    /// The `Frame` must represent a Redis command supported by `miniredis` and
     /// be the array variant.
     ///
     /// # Returns
@@ -101,6 +105,7 @@ impl Command {
             "slength" => Command::Slength(Slength::parse_frames(&mut parse)?),
             "srem" => Command::Srem(Srem::parse_frames(&mut parse)?),
             "zadd" => Command::Zadd(Zadd::parse_frames(&mut parse)?),
+            "zscore" => Command::Zscore(Zscore::parse_frames(&mut parse)?),
             "zrange" => Command::Zrange(Zrange::parse_frames(&mut parse)?),
             "zrem" => Command::Zrem(Zrem::parse_frames(&mut parse)?),
             _ => {
@@ -166,6 +171,7 @@ impl Command {
             Slength(cmd) => cmd.apply(db, dst).await,
             Srem(cmd) => cmd.apply(db, dst).await,
             Zadd(cmd) => cmd.apply(db, dst).await,
+            Zscore(cmd) => cmd.apply(db, dst).await,
             Zrange(cmd) => cmd.apply(db, dst).await,
             Zrem(cmd) => cmd.apply(db, dst).await,
             // `Unsubscribe` cannot be applied. It may only be received from the
@@ -203,6 +209,7 @@ impl Command {
             Command::Slength(_) => "slength",
             Command::Srem(_) => "srem",
             Command::Zadd(_) => "zadd",
+            Command::Zscore(_) => "zscore",
             Command::Zrange(_) => "zrange",
             Command::Zrem(_) => "zrem",
             Command::Unknown(cmd) => cmd.get_name(),

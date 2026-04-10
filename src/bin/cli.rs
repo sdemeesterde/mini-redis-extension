@@ -1,4 +1,4 @@
-use mini_redis::{clients::Client, DEFAULT_PORT};
+use miniredis::{DEFAULT_PORT, clients::Client};
 
 use bytes::Bytes;
 use clap::{Parser, Subcommand};
@@ -8,7 +8,7 @@ use std::time::Duration;
 
 #[derive(Parser, Debug)]
 #[command(
-    name = "mini-redis-cli",
+    name = "miniredis-cli",
     version,
     author,
     about = "Issue Redis commands"
@@ -100,6 +100,15 @@ enum Command {
         /// Clap only supports flat list, it sees: ["10", "foo", "20", "bar"]
         entries: Vec<String>,
     },
+    /// Get the score of the key associated member
+    #[command(alias = "Zscore", alias = "ZSCORE")]
+    Zscore {
+        /// Name of the key
+        key: String,
+
+        /// Member to check its score
+        member: String,
+    },
     /// Returns the specified range of elements in the sorted set stored at key.
     #[command(alias = "Zrange", alias = "ZRANGE")]
     Zrange {
@@ -154,7 +163,7 @@ enum Command {
 /// threads. The CLI tool use case benefits more by being lighter instead of
 /// multi-threaded.
 #[tokio::main(flavor = "current_thread")]
-async fn main() -> mini_redis::Result<()> {
+async fn main() -> miniredis::Result<()> {
     // Enable logging
     tracing_subscriber::fmt::try_init()?;
 
@@ -233,6 +242,13 @@ async fn main() -> mini_redis::Result<()> {
             }
             let added = client.zadd(&key, pairs).await?;
             println!("(integer) {added:?}");
+        }
+        Command::Zscore { key, member } => {
+            let score = client.zscore(&key, &member).await?;
+            match score {
+                Some(s) => println!("(integer) {s:?}"),
+                None => println!("nill"),
+            }
         }
         Command::Zrange {
             key,

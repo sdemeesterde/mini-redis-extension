@@ -1,23 +1,19 @@
 [package]
-authors = ["Carl Lerche <me@carllerche.com>"]
-edition = "2018"
-name = "mini-redis"
+edition = "2024"
+name = "miniredis"
 version = "0.4.1"
 license = "MIT"
 readme = "README.md"
-documentation = "https://docs.rs/mini-redis/0.4.0/mini-redis/"
-repository = "https://github.com/tokio-rs/mini-redis"
 description = """
-An incomplete implementation of a Rust client and server. Used as a
-larger example of an idiomatic Tokio application.
+An incomplete implementation of a Rust client and server.
 """
 
 [[bin]]
-name = "mini-redis-cli"
+name = "miniredis-cli"
 path = "src/bin/cli.rs"
 
 [[bin]]
-name = "mini-redis-server"
+name = "miniredis-server"
 path = "src/bin/server.rs"
 
 [dependencies]
@@ -44,4 +40,9 @@ skiplist = "1.1.0"
 tokio = { version = "1", features = ["test-util"] }
 
 [features]
-otel = ["dep:opentelemetry", "dep:tracing-opentelemetry", "dep:opentelemetry-aws", "dep:opentelemetry-otlp"]
+otel = [
+  "dep:opentelemetry",
+  "dep:tracing-opentelemetry",
+  "dep:opentelemetry-aws",
+  "dep:opentelemetry-otlp",
+]

@@ -3,52 +3,54 @@ use bytes::Bytes;
 use tracing::{debug, instrument};
 
 #[derive(Debug)]
-pub struct Slength {
+pub struct Zscore {
     key: String,
+    member: String,
 }
 
-impl Slength {
-    pub(crate) fn new(key: String) -> Slength {
-        Slength { key }
+impl Zscore {
+    pub(crate) fn new(key: String, member: String) -> Zscore {
+        Zscore { key, member }
     }
 
-    /// Parse a `Slength` instance from a received frame.
+    /// Parse a `Zscore` instance from a received frame.
     ///
     /// The `Parse` argument provides a cursor-like API to read fields from the
     /// `Frame`. At this point, the entire frame has already been received from
     /// the socket.
     ///
-    /// The `SLENGTH` string has already been consumed.
+    /// The `ZSCORE` string has already been consumed.
     ///
     /// # Returns
     ///
-    /// Returns the `SLENGTH` value on success. If the frame is malformed,
+    /// Returns the `Zscore` value on success. If the frame is malformed,
     /// `Err` is returned.
     ///
     /// # Format
     ///
-    /// Expects an array frame containing one frame.
+    /// Expects an array frame containing two frames.
     ///
     /// ```text
-    /// SLENGTH key
+    /// ZSCORE key member
     /// ```
-    pub(crate) fn parse_frames(parse: &mut Parse) -> crate::Result<Slength> {
+    pub(crate) fn parse_frames(parse: &mut Parse) -> crate::Result<Zscore> {
         let key = parse.next_string()?;
+        let member = parse.next_string()?;
 
-        Ok(Slength { key })
+        Ok(Zscore { key, member })
     }
 
-    /// Apply the `Slength` command to the specified `Db` instance.
+    /// Apply the `Zscore` command to the specified `Db` instance.
     ///
     /// The response is written to `dst`. This is called by the server in order
     /// to execute a received command.
     #[instrument(skip(self, db, dst))]
     pub(crate) async fn apply(self, db: &Db, dst: Option<&mut Connection>) -> crate::Result<()> {
-        let length = db.slength(&self.key);
+        let score_opt = db.zscore(self.key, self.member);
 
         if let Some(dst) = dst {
-            let response = match length {
-                Some(l) => Frame::Integer(l),
+            let response = match score_opt {
+                Some(score) => Frame::Integer(score),
                 None => Frame::Null,
             };
             debug!(?response);
@@ -62,12 +64,13 @@ impl Slength {
 
     /// Converts the command into an equivalent `Frame`.
     ///
-    /// This is called by the client when encoding a `Slength` command to send to
+    /// This is called by the client when encoding a `Zscore` command to send to
     /// the server.
     pub(crate) fn into_frame(self) -> Frame {
         let mut frame = Frame::array();
-        frame.push_bulk(Bytes::from("slength".as_bytes()));
+        frame.push_bulk(Bytes::from("zscore".as_bytes()));
         frame.push_bulk(Bytes::from(self.key.into_bytes()));
+        frame.push_bulk(Bytes::from(self.member.into_bytes()));
         frame
     }
 }

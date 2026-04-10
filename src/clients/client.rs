@@ -4,7 +4,7 @@
 
 use crate::cmd::{
     Del, Get, Ping, Publish, Sadd, Set, Sismember, Slength, Srem, Subscribe, Unsubscribe, Zadd,
-    Zrange, Zrem,
+    Zrange, Zrem, Zscore,
 };
 use crate::{Connection, Frame};
 
@@ -64,7 +64,7 @@ impl Client {
     /// # Examples
     ///
     /// ```no_run
-    /// use mini_redis::clients::Client;
+    /// use miniredis::clients::Client;
     ///
     /// #[tokio::main]
     /// async fn main() {
@@ -80,7 +80,7 @@ impl Client {
         // The `addr` argument is passed directly to `TcpStream::connect`. This
         // performs any asynchronous DNS lookup and attempts to establish the TCP
         // connection. An error at either step returns an error, which is then
-        // bubbled up to the caller of `mini_redis` connect.
+        // bubbled up to the caller of `miniredis` connect.
         let socket = TcpStream::connect(addr).await?;
 
         // Initialize the connection state. This allocates read/write buffers to
@@ -102,7 +102,7 @@ impl Client {
     ///
     /// Demonstrates basic usage.
     /// ```no_run
-    /// use mini_redis::clients::Client;
+    /// use miniredis::clients::Client;
     ///
     /// #[tokio::main]
     /// async fn main() {
@@ -135,7 +135,7 @@ impl Client {
     /// Demonstrates basic usage.
     ///
     /// ```no_run
-    /// use mini_redis::clients::Client;
+    /// use miniredis::clients::Client;
     ///
     /// #[tokio::main]
     /// async fn main() {
@@ -182,7 +182,7 @@ impl Client {
     /// Demonstrates basic usage.
     ///
     /// ```no_run
-    /// use mini_redis::clients::Client;
+    /// use miniredis::clients::Client;
     ///
     /// #[tokio::main]
     /// async fn main() {
@@ -221,7 +221,7 @@ impl Client {
     /// favorable.
     ///
     /// ```no_run
-    /// use mini_redis::clients::Client;
+    /// use miniredis::clients::Client;
     /// use tokio::time;
     /// use std::time::Duration;
     ///
@@ -285,7 +285,7 @@ impl Client {
     /// Demonstrates basic usage.
     ///
     /// ```no_run
-    /// use mini_redis::clients::Client;
+    /// use miniredis::clients::Client;
     ///
     /// #[tokio::main]
     /// async fn main() {
@@ -309,7 +309,7 @@ impl Client {
     /// Demonstrates basic usage.
     ///
     /// ```no_run
-    /// use mini_redis::clients::Client;
+    /// use miniredis::clients::Client;
     ///
     /// #[tokio::main]
     /// async fn main() {
@@ -350,7 +350,7 @@ impl Client {
     /// Demonstrates basic usage.
     ///
     /// ```no_run
-    /// use mini_redis::clients::Client;
+    /// use miniredis::clients::Client;
     ///
     /// #[tokio::main]
     /// async fn main() {
@@ -390,7 +390,7 @@ impl Client {
     /// Demonstrates basic usage.
     ///
     /// ```no_run
-    /// use mini_redis::clients::Client;
+    /// use miniredis::clients::Client;
     ///
     /// #[tokio::main]
     /// async fn main() {
@@ -399,11 +399,14 @@ impl Client {
     ///     let key = "key_test";
     ///
     ///     let length = client.slength(key).await.unwrap();
-    ///     println!("Length: {:?}", length);
+    ///     match length {
+    ///        Some(l) => println!("Length: {:?}", l),
+    ///        None => println!("The key associated set does not exist"),
+    ///     }
     /// }
     /// ```
     #[instrument(skip(self))]
-    pub async fn slength(&mut self, key: &str) -> crate::Result<usize> {
+    pub async fn slength(&mut self, key: &str) -> crate::Result<Option<usize>> {
         let frame = Slength::new(key.to_string()).into_frame();
 
         debug!(request = ?frame);
@@ -415,9 +418,10 @@ impl Client {
 
         // Wait for the response from the server
         //
-        // Only Integer frame is accepted, telling how many keys were added
+        // Integer, and Null frame are accepted, telling the length of the set of present
         match self.read_response().await? {
-            Frame::Integer(length) => Ok(length as usize),
+            Frame::Integer(length) => Ok(Some(length as usize)),
+            Frame::Null => Ok(None),
             frame => Err(frame.to_error()),
         }
     }
@@ -429,7 +433,7 @@ impl Client {
     /// Demonstrates basic usage.
     ///
     /// ```no_run
-    /// use mini_redis::clients::Client;
+    /// use miniredis::clients::Client;
     ///
     /// #[tokio::main]
     /// async fn main() {
@@ -455,7 +459,7 @@ impl Client {
 
         // Wait for the response from the server
         //
-        // Only Integer frame is accepted, telling how many keys were added
+        // Only Integer frame is accepted, 0 if not present and 1 if present
         match self.read_response().await? {
             Frame::Integer(is_member) => Ok(is_member as usize),
             frame => Err(frame.to_error()),
@@ -471,7 +475,7 @@ impl Client {
     /// Demonstrates basic usage.
     ///
     /// ```no_run
-    /// use mini_redis::clients::Client;
+    /// use miniredis::clients::Client;
     ///
     /// #[tokio::main]
     /// async fn main() {
@@ -497,7 +501,7 @@ impl Client {
 
         // Wait for the response from the server
         //
-        // Only Integer frame is accepted, telling how many keys were added
+        // Only Integer frame is accepted, telling how many keys were removed
         match self.read_response().await? {
             Frame::Integer(removed) => Ok(removed as usize),
             frame => Err(frame.to_error()),
@@ -513,7 +517,7 @@ impl Client {
     /// Demonstrates basic usage.
     ///
     /// ```no_run
-    /// use mini_redis::clients::Client;
+    /// use miniredis::clients::Client;
     ///
     /// #[tokio::main]
     /// async fn main() {
@@ -546,6 +550,50 @@ impl Client {
         }
     }
 
+    /// Returns the score of member associated key.
+    ///
+    /// # Examples
+    ///
+    /// Demonstrates basic usage.
+    ///
+    /// ```no_run
+    /// use miniredis::clients::Client;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let mut client = Client::connect("localhost:6379").await.unwrap();
+    ///
+    ///     let key = "key_test";
+    ///     let member = "player1";
+    ///
+    ///     let score = client.zscore(key, member).await.unwrap();
+    ///     match score {
+    ///        Some(s) => println!("Score: {:?}", s),
+    ///        None => println!("member does not exist"),
+    ///     }
+    /// }
+    /// ```
+    #[instrument(skip(self))]
+    pub async fn zscore(&mut self, key: &str, member: &str) -> crate::Result<Option<usize>> {
+        let frame = Zscore::new(key.to_string(), member.to_string()).into_frame();
+
+        debug!(request = ?frame);
+
+        // Write the frame to the socket. This writes the full frame to the
+        // socket, waiting if necessary.
+        let resp_frame = frame.encode_resp()?;
+        self.connection.write_frame(resp_frame).await?;
+
+        // Wait for the response from the server
+        //
+        // Integer and Null frame are accepted, telling the score if it is present
+        match self.read_response().await? {
+            Frame::Integer(score) => Ok(Some(score as usize)),
+            Frame::Null => Ok(None),
+            frame => Err(frame.to_error()),
+        }
+    }
+
     /// Get the range (score-member) where start >= score >= stop.
     ///
     /// Return the number of key that were added.
@@ -555,7 +603,7 @@ impl Client {
     /// Demonstrates basic usage.
     ///
     /// ```no_run
-    /// use mini_redis::clients::Client;
+    /// use miniredis::clients::Client;
     ///
     /// #[tokio::main]
     /// async fn main() {
@@ -629,7 +677,7 @@ impl Client {
     /// Demonstrates basic usage.
     ///
     /// ```no_run
-    /// use mini_redis::clients::Client;
+    /// use miniredis::clients::Client;
     ///
     /// #[tokio::main]
     /// async fn main() {
@@ -655,7 +703,7 @@ impl Client {
 
         // Wait for the response from the server
         //
-        // Only Integer frame is accepted, telling how many keys were added
+        // Only Integer frame is accepted, telling how many keys were removed
         match self.read_response().await? {
             Frame::Integer(removed) => Ok(removed as usize),
             frame => Err(frame.to_error()),
@@ -673,7 +721,7 @@ impl Client {
     /// Demonstrates basic usage.
     ///
     /// ```no_run
-    /// use mini_redis::clients::Client;
+    /// use miniredis::clients::Client;
     ///
     /// #[tokio::main]
     /// async fn main() {
