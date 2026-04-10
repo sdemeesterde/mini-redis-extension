@@ -248,11 +248,9 @@ impl Db {
         // If there was a value previously associated with the key **and** it
         // had an expiration time. The associated entry in the `expirations` map
         // must also be removed. This avoids leaking data.
-        if let Some(prev) = prev {
-            if let Some(when) = prev.expires_at {
-                // clear expiration
-                state.expirations.remove(&(when, key.clone()));
-            }
+        if let Some(when) = prev.and_then(|p| p.expires_at) {
+            // clear expiration
+            state.expirations.remove(&(when, key.clone()));
         }
 
         // Track the expiration. If we insert before remove that will cause bug
@@ -324,10 +322,7 @@ impl Db {
 
         let S { ref sets } = state.s;
 
-        match sets.get(key) {
-            Some(set) => Some(set.len() as u64),
-            None => None,
-        }
+        sets.get(key).map(|set| set.len() as u64)
     }
 
     /// Returns 1 if the member is present, 0 otherwise.
@@ -336,12 +331,11 @@ impl Db {
 
         let S { ref sets } = state.s;
 
-        if let Some(set) = sets.get(key) {
-            if set.contains(member) {
-                return 1;
-            }
+        if sets.get(key).is_some_and(|set| set.contains(member)) {
+            1
+        } else {
+            0
         }
-        0
     }
 
     /// Returns the number of actually removed members
@@ -409,10 +403,7 @@ impl Db {
         } = state.z;
 
         if let Some(member_score) = member_scores.get(&key) {
-            match member_score.get(&member) {
-                Some(&score) => Some(score),
-                None => None,
-            }
+            member_score.get(&member).copied()
         } else {
             None
         }
@@ -484,15 +475,15 @@ impl Db {
         } = state.z;
 
         let mut cnt = 0;
-        if let Some(skiplist) = skiplists.get_mut(&key) {
-            if let Some(member_score) = member_scores.get_mut(&key) {
-                for member in members.into_iter() {
-                    // Member must be present in both member_score & skiplist.
-                    // This condition must be enforced by zadd.
-                    if let Some(score) = member_score.remove(&member) {
-                        skiplist.remove_by_value(&ScoreEntry { score, member });
-                        cnt += 1;
-                    }
+        if let (Some(skiplist), Some(member_score)) =
+            (skiplists.get_mut(&key), member_scores.get_mut(&key))
+        {
+            for member in members.into_iter() {
+                // Member must be present in both member_score & skiplist.
+                // This condition must be enforced by zadd.
+                if let Some(score) = member_score.remove(&member) {
+                    skiplist.remove_by_value(&ScoreEntry { score, member });
+                    cnt += 1;
                 }
             }
         }
