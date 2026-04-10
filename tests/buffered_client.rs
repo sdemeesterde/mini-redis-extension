@@ -224,6 +224,38 @@ async fn zadd_zrem() {
     assert_eq!(0, removed);
 }
 
+/// `Z`: Add score-member pairs and retrieve score to a single
+/// key associated sorted set
+#[tokio::test]
+async fn zadd_zscore() {
+    let (addr, _) = start_server().await;
+
+    let client = Client::connect(addr).await.unwrap();
+    let buffered_client = BufferedClient::buffer(client);
+
+    let key = "key";
+    let entries = vec![
+        (1, String::from("player1")),
+        (5, String::from("player2")),
+        (10, String::from("player3")),
+    ];
+
+    let added = buffered_client.zadd(key, entries.clone()).await.unwrap();
+    assert_eq!(3, added);
+
+    let score = buffered_client.zscore(key, "player1").await.unwrap();
+    assert_eq!(Some(1), score);
+
+    let score = buffered_client
+        .zscore("unknown_key", "player1")
+        .await
+        .unwrap();
+    assert_eq!(None, score);
+
+    let score = buffered_client.zscore(key, "unknown_player").await.unwrap();
+    assert_eq!(None, score);
+}
+
 /// `Z`: Add and retrieve multiple score-member pairs to a
 /// single key associated sorted set
 #[tokio::test]

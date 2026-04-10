@@ -106,6 +106,10 @@ async fn sadd_slength() {
 
     let length = client.slength(key).await.unwrap();
     assert_eq!(Some(3), length);
+
+    let unknown_key = "unknown";
+    let length = client.slength(unknown_key).await.unwrap();
+    assert_eq!(None, length);
 }
 
 /// `S`: Add and ismember of underlying set.
@@ -159,6 +163,34 @@ async fn sadd_srem() {
     ];
     let removed = client.srem(key, members).await.unwrap();
     assert_eq!(2, removed);
+}
+
+/// `Z`: Add score-member pairs and retrieve score to a single
+/// key associated sorted set
+#[tokio::test]
+async fn zadd_zscore() {
+    let (addr, _) = start_server().await;
+
+    let mut client = Client::connect(addr).await.unwrap();
+
+    let key = "key";
+    let entries = vec![
+        (1, String::from("player1")),
+        (5, String::from("player2")),
+        (10, String::from("player3")),
+    ];
+
+    let added = client.zadd(key, entries.clone()).await.unwrap();
+    assert_eq!(3, added);
+
+    let score = client.zscore(key, "player1").await.unwrap();
+    assert_eq!(Some(1), score);
+
+    let score = client.zscore("unknown_key", "player1").await.unwrap();
+    assert_eq!(None, score);
+
+    let score = client.zscore(key, "unknown_player").await.unwrap();
+    assert_eq!(None, score);
 }
 
 /// `Z`: Add and retrieve a score-member pair to a single key associated sorted set
