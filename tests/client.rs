@@ -97,7 +97,7 @@ async fn sadd_slength() {
     assert_eq!(0, added);
 
     let length = client.slength(key).await.unwrap();
-    assert_eq!(Some(1), length);
+    assert_eq!(1, length);
 
     let members = vec![String::from("player2"), String::from("player3")];
     let added = client.sadd(key, members).await.unwrap();
@@ -105,11 +105,11 @@ async fn sadd_slength() {
     assert_eq!(2, added);
 
     let length = client.slength(key).await.unwrap();
-    assert_eq!(Some(3), length);
+    assert_eq!(3, length);
 
     let unknown_key = "unknown";
     let length = client.slength(unknown_key).await.unwrap();
-    assert_eq!(None, length);
+    assert_eq!(0, length);
 }
 
 /// `S`: Add and ismember of underlying set.

@@ -399,14 +399,11 @@ impl Client {
     ///     let key = "key_test";
     ///
     ///     let length = client.slength(key).await.unwrap();
-    ///     match length {
-    ///        Some(l) => println!("Length: {:?}", l),
-    ///        None => println!("The key associated set does not exist"),
-    ///     }
+    ///     println!("Length: {:?}", length);
     /// }
     /// ```
     #[instrument(skip(self))]
-    pub async fn slength(&mut self, key: &str) -> crate::Result<Option<usize>> {
+    pub async fn slength(&mut self, key: &str) -> crate::Result<usize> {
         let frame = Slength::new(key.to_string()).into_frame();
 
         debug!(request = ?frame);
@@ -420,8 +417,7 @@ impl Client {
         //
         // Integer, and Null frame are accepted, telling the length of the set of present
         match self.read_response().await? {
-            Frame::Integer(length) => Ok(Some(length as usize)),
-            Frame::Null => Ok(None),
+            Frame::Integer(length) => Ok(length as usize),
             frame => Err(frame.to_error()),
         }
     }

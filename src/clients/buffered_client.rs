@@ -1,10 +1,10 @@
 use std::time::Duration;
 
-use crate::clients::Client;
 use crate::Result;
+use crate::clients::Client;
 
 use bytes::Bytes;
-use tokio::sync::mpsc::{channel, Receiver, Sender};
+use tokio::sync::mpsc::{Receiver, Sender, channel};
 use tokio::sync::oneshot;
 
 // Enum used to message pass the requested command from the `BufferedClient` handle
@@ -41,7 +41,7 @@ enum Response {
     Del(Result<usize>),
     Sadd(Result<usize>),
     Sismember(Result<usize>),
-    Slength(Result<Option<usize>>),
+    Slength(Result<usize>),
     Srem(Result<usize>),
     Zadd(Result<usize>),
     Zscore(Result<Option<usize>>),
@@ -268,7 +268,7 @@ impl BufferedClient {
     ///
     /// Same as `Client::slength` but requests are **buffered** until the associated
     /// connection has the ability to send the request.
-    pub async fn slength(&self, key: &str) -> Result<Option<usize>> {
+    pub async fn slength(&self, key: &str) -> Result<usize> {
         // Initialize a new `Slength` command to send via the channel.
         let slength = Command::Slength(key.into());
 

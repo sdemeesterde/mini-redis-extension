@@ -317,12 +317,12 @@ impl Db {
 
     /// Returns the length of "S" key associated structure,
     /// i.e., the number of member(s) associated to given key
-    pub(crate) fn slength(&self, key: &str) -> Option<u64> {
+    pub(crate) fn slength(&self, key: &str) -> u64 {
         let state = self.shared.state.lock().unwrap();
 
         let S { ref sets } = state.s;
 
-        sets.get(key).map(|set| set.len() as u64)
+        sets.get(key).map(|s| s.len() as u64).unwrap_or(0)
     }
 
     /// Returns 1 if the member is present, 0 otherwise.

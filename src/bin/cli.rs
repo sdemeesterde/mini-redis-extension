@@ -247,7 +247,7 @@ async fn main() -> miniredis::Result<()> {
             let score = client.zscore(&key, &member).await?;
             match score {
                 Some(s) => println!("(integer) {s:?}"),
-                None => println!("nill"),
+                None => println!("(nil)"),
             }
         }
         Command::Zrange {

@@ -47,10 +47,7 @@ impl Slength {
         let length = db.slength(&self.key);
 
         if let Some(dst) = dst {
-            let response = match length {
-                Some(l) => Frame::Integer(l),
-                None => Frame::Null,
-            };
+            let response = Frame::Integer(length);
             debug!(?response);
 
             let resp_frame = response.encode_resp()?;
