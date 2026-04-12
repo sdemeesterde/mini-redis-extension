@@ -78,7 +78,7 @@ async fn run(mut client: Client, mut rx: Receiver<Message>) {
                     Response::Set(client.set(&key, value).await)
                 }
             }
-            Command::Del(keys) => Response::Del(client.deletes(keys).await),
+            Command::Del(keys) => Response::Del(client.del(keys).await),
             Command::Sadd(key, members) => Response::Sadd(client.sadd(&key, members).await),
             Command::Sismember(key, member) => {
                 Response::Sismember(client.sismember(&key, &member).await)
@@ -206,9 +206,9 @@ impl BufferedClient {
 
     /// Deletes `keys`.
     ///
-    /// Same as `Client::deletes` but requests are **buffered** until the associated
+    /// Same as `Client::del` but requests are **buffered** until the associated
     /// connection has the ability to send the request.
-    pub async fn deletes(&self, keys: Vec<String>) -> Result<usize> {
+    pub async fn del(&self, keys: Vec<String>) -> Result<usize> {
         // Initialize a new `Del` command to send via the channel.
         let del = Command::Del(keys);
 

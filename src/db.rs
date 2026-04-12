@@ -276,7 +276,7 @@ impl Db {
     ///
     /// Remove each key, value pair from entries hashmap, along
     /// with the optional expiration Duration.
-    pub(crate) fn deletes(&self, keys: Vec<String>) -> u64 {
+    pub(crate) fn del(&self, keys: Vec<String>) -> u64 {
         let mut state = self.shared.state.lock().unwrap();
         let mut cnt = 0;
 

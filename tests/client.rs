@@ -48,11 +48,11 @@ async fn single_delete() {
     let mut client = Client::connect(addr).await.unwrap();
     client.set("foo", "bar".into()).await.unwrap();
 
-    let is_present = client.delete("foo").await.unwrap();
-    assert!(is_present);
+    let deleted = client.del(vec!["foo".to_string()]).await.unwrap();
+    assert_eq!(1, deleted);
 
-    let is_not_present = client.delete("unknown_key").await.unwrap();
-    assert!(!is_not_present);
+    let deleted = client.del(vec!["unknown_key".to_string()]).await.unwrap();
+    assert_eq!(0, deleted);
 }
 
 /// A delete test for several deletes:
@@ -69,15 +69,15 @@ async fn several_deletes() {
 
     let members = vec![String::from("foo1"), String::from("foo2")];
 
-    let cnt = client.deletes(members.clone()).await.unwrap();
+    let cnt = client.del(members.clone()).await.unwrap();
     assert_eq!(2, cnt);
 
     client.set("foo1", "bar1".into()).await.unwrap();
 
-    let cnt = client.deletes(members.clone()).await.unwrap();
+    let cnt = client.del(members.clone()).await.unwrap();
     assert_eq!(1, cnt);
 
-    let cnt = client.deletes(members).await.unwrap();
+    let cnt = client.del(members).await.unwrap();
     assert_eq!(0, cnt);
 }
 

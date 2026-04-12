@@ -276,30 +276,6 @@ impl Client {
         }
     }
 
-    /// Delete the key-value pair.
-    ///
-    /// true is returned if the value was present, false otherwise
-    ///
-    /// # Examples
-    ///
-    /// Demonstrates basic usage.
-    ///
-    /// ```no_run
-    /// use miniredis::clients::Client;
-    ///
-    /// #[tokio::main]
-    /// async fn main() {
-    ///     let mut client = Client::connect("localhost:6379").await.unwrap();
-    ///
-    ///     let val = client.delete("foo").await.unwrap();
-    ///     println!("Key was removed: {:?}", val);
-    /// }
-    /// ```
-    #[instrument(skip(self))]
-    pub async fn delete(&mut self, key: &str) -> crate::Result<bool> {
-        Ok(self.deletes(vec![key.to_string()]).await? == 1)
-    }
-
     /// Delete the key-value pair(s).
     ///
     /// Return the number of key that were removed.
@@ -317,12 +293,12 @@ impl Client {
     ///
     ///     let to_remove = vec![String::from("foo1"), String::from("foo2")];
     ///
-    ///     let removed = client.deletes(to_remove).await.unwrap();
+    ///     let removed = client.del(to_remove).await.unwrap();
     ///     println!("Number of key removed: {:?}", removed);
     /// }
     /// ```
     #[instrument(skip(self))]
-    pub async fn deletes(&mut self, keys: Vec<String>) -> crate::Result<usize> {
+    pub async fn del(&mut self, keys: Vec<String>) -> crate::Result<usize> {
         let frame = Del::new(keys).into_frame();
 
         debug!(request = ?frame);

@@ -227,7 +227,7 @@ async fn main() -> miniredis::Result<()> {
             println!("OK");
         }
         Command::Del { keys } => {
-            let removed = client.deletes(keys).await?;
+            let removed = client.del(keys).await?;
             println!("(integer) {removed:?}");
         }
         Command::Sadd { key, members } => {
