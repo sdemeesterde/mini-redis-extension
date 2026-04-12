@@ -37,6 +37,9 @@ pub use zscore::Zscore;
 mod zrange;
 pub use zrange::Zrange;
 
+mod zrank;
+pub use zrank::Zrank;
+
 mod zrem;
 pub use zrem::Zrem;
 
@@ -64,6 +67,7 @@ pub enum Command {
     Zadd(Zadd),
     Zscore(Zscore),
     Zrange(Zrange),
+    Zrank(Zrank),
     Zrem(Zrem),
     Unknown(Unknown),
 }
@@ -107,6 +111,7 @@ impl Command {
             "zadd" => Command::Zadd(Zadd::parse_frames(&mut parse)?),
             "zscore" => Command::Zscore(Zscore::parse_frames(&mut parse)?),
             "zrange" => Command::Zrange(Zrange::parse_frames(&mut parse)?),
+            "zrank" => Command::Zrank(Zrank::parse_frames(&mut parse)?),
             "zrem" => Command::Zrem(Zrem::parse_frames(&mut parse)?),
             _ => {
                 // The command is not recognized and an Unknown command is
@@ -173,6 +178,7 @@ impl Command {
             Zadd(cmd) => cmd.apply(db, dst).await,
             Zscore(cmd) => cmd.apply(db, dst).await,
             Zrange(cmd) => cmd.apply(db, dst).await,
+            Zrank(cmd) => cmd.apply(db, dst).await,
             Zrem(cmd) => cmd.apply(db, dst).await,
             // `Unsubscribe` cannot be applied. It may only be received from the
             // context of a `Subscribe` command.
@@ -211,6 +217,7 @@ impl Command {
             Command::Zadd(_) => "zadd",
             Command::Zscore(_) => "zscore",
             Command::Zrange(_) => "zrange",
+            Command::Zrank(_) => "zrank",
             Command::Zrem(_) => "zrem",
             Command::Unknown(cmd) => cmd.get_name(),
         }

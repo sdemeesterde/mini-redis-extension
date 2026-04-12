@@ -30,6 +30,8 @@ enum Command {
     Zscore(String, String),
     // key, start, stop, rev, offset, count
     Zrange(String, u64, u64, bool, Option<u64>, Option<u64>),
+    // key, member, desc
+    Zrank(String, String, bool),
     // key, members
     Zrem(String, Vec<String>),
 }
@@ -46,6 +48,7 @@ enum Response {
     Zadd(Result<usize>),
     Zscore(Result<Option<usize>>),
     Zrange(Result<Vec<(u64, String)>>),
+    Zrank(Result<Option<usize>>),
     Zrem(Result<usize>),
 }
 
@@ -86,6 +89,9 @@ async fn run(mut client: Client, mut rx: Receiver<Message>) {
             Command::Zscore(key, member) => Response::Zscore(client.zscore(&key, &member).await),
             Command::Zrange(key, start, stop, rev, offset, count) => {
                 Response::Zrange(client.zrange(&key, start, stop, rev, offset, count).await)
+            }
+            Command::Zrank(key, member, desc) => {
+                Response::Zrank(client.zrank(&key, &member, desc).await)
             }
             Command::Zrem(key, members) => Response::Zrem(client.zrem(&key, members).await),
         };
@@ -378,6 +384,31 @@ impl BufferedClient {
         match rx.await {
             Ok(Response::Zrange(res)) => res,
             Ok(_) => Err("Wrong response type received for Zrange.".into()),
+            Err(err) => Err(err.into()),
+        }
+    }
+
+    /// Returns the rank of the member in the sorted set stored at key.
+    /// The rank is 0-based.
+    ///
+    /// If desc is true, return the rank in decreasing order.
+    ///
+    /// Same as `Client::zrem` but requests are **buffered** until the associated
+    /// connection has the ability to send the request.
+    pub async fn zrank(&self, key: &str, member: &str, desc: bool) -> Result<Option<usize>> {
+        // Initialize a new `Zrank` command to send via the channel.
+        let zrem = Command::Zrank(key.into(), member.into(), desc);
+
+        // Initialize a new oneshot to be used to receive the response back from the connection.
+        let (tx, rx) = oneshot::channel();
+
+        // Send the request
+        self.tx.send((zrem, tx)).await?;
+
+        // Await the response
+        match rx.await {
+            Ok(Response::Zrank(res)) => res,
+            Ok(_) => Err("Wrong response type received for Zrem.".into()),
             Err(err) => Err(err.into()),
         }
     }

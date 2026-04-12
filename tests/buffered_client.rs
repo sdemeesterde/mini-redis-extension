@@ -354,6 +354,40 @@ async fn zadd_zrange_optional_arguments() {
     );
 }
 
+/// `Z`: Test zank
+#[tokio::test]
+async fn zadd_zank() {
+    let (addr, _) = start_server().await;
+
+    let client = Client::connect(addr).await.unwrap();
+    let buffered_client = BufferedClient::buffer(client);
+
+    let key = "key";
+    let entries = vec![
+        (1, String::from("player1")),
+        (5, String::from("player2")),
+        (10, String::from("player3")),
+    ];
+
+    let added = buffered_client.zadd(key, entries.clone()).await.unwrap();
+    assert_eq!(3, added);
+
+    let rank = buffered_client.zrank(key, "player1", false).await.unwrap();
+    assert_eq!(Some(0), rank);
+
+    let rank = buffered_client.zrank(key, "player1", true).await.unwrap();
+    assert_eq!(Some(2), rank);
+
+    let rank = buffered_client.zrank(key, "player3", true).await.unwrap();
+    assert_eq!(Some(0), rank);
+
+    let rank = buffered_client
+        .zrank(key, "unkwown_player", true)
+        .await
+        .unwrap();
+    assert_eq!(None, rank);
+}
+
 async fn start_server() -> (SocketAddr, JoinHandle<()>) {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();

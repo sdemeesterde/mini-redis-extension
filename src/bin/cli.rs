@@ -127,6 +127,19 @@ enum Command {
         /// Optional [LIMIT offset count]
         limit_args: Vec<String>,
     },
+    /// Returns the 0-indexed rank of the mamber in the sorted key.
+    #[command(alias = "Zrank", alias = "ZRANK")]
+    Zrank {
+        /// Name of the key
+        key: String,
+
+        /// Member
+        member: String,
+
+        /// Optional DESC
+        #[arg(value_parser = ["DESC"], ignore_case = true)]
+        desc: Option<String>,
+    },
     /// Remove member(s) from the sorted set associated key
     #[command(alias = "Zrem", alias = "ZREM")]
     Zrem {
@@ -279,6 +292,13 @@ async fn main() -> miniredis::Result<()> {
                 for (score, member) in score_member.into_iter() {
                     println!("Score: {score:?} \t by: {member}");
                 }
+            }
+        }
+        Command::Zrank { key, member, desc } => {
+            let rank = client.zrank(&key, &member, desc.is_some()).await?;
+            match rank {
+                Some(r) => println!("(integer) {r}"),
+                None => println!("(nil)"),
             }
         }
         Command::Zrem { key, members } => {

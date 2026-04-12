@@ -463,6 +463,41 @@ impl Db {
         }
     }
 
+    /// Returns the rank of the member in the sorted set stored at key.
+    /// The rank is 0-based.
+    ///
+    /// If desc is true, return the rank in decreasing order.
+    pub(crate) fn zrank(&self, key: String, member: String, desc: bool) -> Option<u64> {
+        let mut state = self.shared.state.lock().unwrap();
+
+        let Z {
+            ref mut member_scores,
+            ref mut skiplists,
+        } = state.z;
+
+        let (skiplist, member_score) = match (skiplists.get_mut(&key), member_scores.get_mut(&key))
+        {
+            (Some(s), Some(m)) => (s, m),
+            _ => return None,
+        };
+
+        let score = match member_score.get(&member) {
+            Some(&s) => s,
+            None => return None,
+        };
+
+        let rank = skiplist.rank(&ScoreEntry { score, member });
+
+        let mut rank = rank.map(|r| r as u64);
+        if let Some(r) = rank
+            && desc
+        {
+            rank = Some(skiplist.len() as u64 - r - 1)
+        }
+
+        rank
+    }
+
     /// Returns the number of actually removed members
     ///
     /// Remove the members of the set stored at key.

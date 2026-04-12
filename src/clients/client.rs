@@ -4,7 +4,7 @@
 
 use crate::cmd::{
     Del, Get, Ping, Publish, Sadd, Set, Sismember, Slength, Srem, Subscribe, Unsubscribe, Zadd,
-    Zrange, Zrem, Zscore,
+    Zrange, Zrank, Zrem, Zscore,
 };
 use crate::{Connection, Frame};
 
@@ -664,9 +664,10 @@ impl Client {
         }
     }
 
-    /// Remove members to the sorted set associated key.
+    /// Returns the rank of member in the sorted set stored at key, with the scores ordered from low to high.
+    /// The rank (or index) is 0-based, which means that the member with the lowest score has rank 0.
     ///
-    /// Return the number of actually removed members.
+    /// The optional WITHSCORE argument supplements the command's reply with the score of the element returned.
     ///
     /// # Examples
     ///
@@ -702,6 +703,57 @@ impl Client {
         // Only Integer frame is accepted, telling how many keys were removed
         match self.read_response().await? {
             Frame::Integer(removed) => Ok(removed as usize),
+            frame => Err(frame.to_error()),
+        }
+    }
+
+    /// Remove members to the sorted set associated key.
+    ///
+    /// Return the number of actually removed members.
+    ///
+    /// # Examples
+    ///
+    /// Demonstrates basic usage.
+    ///
+    /// ```no_run
+    /// use miniredis::clients::Client;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let mut client = Client::connect("localhost:6379").await.unwrap();
+    ///
+    ///     let key = "key_test";
+    ///     let entries = vec![(10, String::from("player1")), (5, String::from("player2"))];
+    ///
+    ///     let added = client.zadd(key, entries).await.unwrap();
+    ///     let rank = client.zrank(key, "player1", true).await.unwrap();
+    ///
+    ///     // Rank of member: 0
+    ///     println!("Rank of member: {:?}", rank);
+    /// }
+    /// ```
+    #[instrument(skip(self))]
+    pub async fn zrank(
+        &mut self,
+        key: &str,
+        member: &str,
+        desc: bool,
+    ) -> crate::Result<Option<usize>> {
+        let frame = Zrank::new(key.to_string(), member.to_string(), desc).into_frame();
+
+        debug!(request = ?frame);
+
+        // Write the frame to the socket. This writes the full frame to the
+        // socket, waiting if necessary.
+        let resp_frame = frame.encode_resp()?;
+        self.connection.write_frame(resp_frame).await?;
+
+        // Wait for the response from the server
+        //
+        // Integer, and Null frames are accepted, telling the rank if member is present
+        match self.read_response().await? {
+            Frame::Integer(rank) => Ok(Some(rank as usize)),
+            Frame::Null => Ok(None),
             frame => Err(frame.to_error()),
         }
     }

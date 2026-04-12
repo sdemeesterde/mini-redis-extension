@@ -335,6 +335,36 @@ async fn zadd_zrange_optional_arguments() {
     );
 }
 
+/// `Z`: Test zank
+#[tokio::test]
+async fn zadd_zank() {
+    let (addr, _) = start_server().await;
+
+    let mut client = Client::connect(addr).await.unwrap();
+
+    let key = "key";
+    let entries = vec![
+        (1, String::from("player1")),
+        (5, String::from("player2")),
+        (10, String::from("player3")),
+    ];
+
+    let added = client.zadd(key, entries.clone()).await.unwrap();
+    assert_eq!(3, added);
+
+    let rank = client.zrank(key, "player1", false).await.unwrap();
+    assert_eq!(Some(0), rank);
+
+    let rank = client.zrank(key, "player1", true).await.unwrap();
+    assert_eq!(Some(2), rank);
+
+    let rank = client.zrank(key, "player3", true).await.unwrap();
+    assert_eq!(Some(0), rank);
+
+    let rank = client.zrank(key, "unkwown_player", true).await.unwrap();
+    assert_eq!(None, rank);
+}
+
 /// similar to the "hello world" style test, But this time
 /// a single channel subscription will be tested instead
 #[tokio::test]

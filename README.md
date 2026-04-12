@@ -25,14 +25,6 @@ cargo run --bin miniredis-cli get foo
 - Show number of active connections
 - Show ranking of players
 
-#### Architecture
-
-React (frontend)
-        ↓ HTTP / WebSocket (still unsure)
-Backend (Rust service)
-        ↓ TCP (RESP) -> Use client wrapper
-This Redis implementation
-
 ## Supported commands
 
 * [PING](https://redis.io/commands/ping)
@@ -45,7 +37,9 @@ This Redis implementation
 * [SREM](https://redis.io/docs/latest/commands/srem)
 * [ZADD](https://redis.io/commands/zadd)
 * [ZRANGE](https://redis.io/commands/zrange)
+* [ZRANK](https://redis.io/docs/latest/commands/zrank) With different optional parameters.
 * [ZREM](https://redis.io/docs/latest/commands/zrem)
+* [ZSCORE](https://redis.io/docs/latest/commands/zscore)
 * [PUBLISH](https://redis.io/commands/publish)
 * [SUBSCRIBE](https://redis.io/commands/subscribe)
 
