@@ -39,6 +39,23 @@ async fn key_value_get_set() {
     assert_eq!(b"world", &value[..])
 }
 
+/// Simple set() & len() call to test len()
+#[tokio::test]
+async fn set_len() {
+    let (addr, _) = start_server().await;
+
+    let mut client = Client::connect(addr).await.unwrap();
+
+    let len = client.len().await.unwrap();
+    assert_eq!(0, len);
+
+    client.set("foo1", "bar1".into()).await.unwrap();
+    client.set("foo2", "bar2".into()).await.unwrap();
+
+    let len = client.len().await.unwrap();
+    assert_eq!(2, len);
+}
+
 /// A delete test with single delete. Try to delete an existing and non
 /// existing key
 #[tokio::test]

@@ -23,6 +23,24 @@ async fn pool_key_value_get_set() {
     assert_eq!(b"world", &value[..])
 }
 
+/// Simple set() & len() call to test len()
+#[tokio::test]
+async fn set_len() {
+    let (addr, _) = start_server().await;
+
+    let client = Client::connect(addr).await.unwrap();
+    let buffered_client = BufferedClient::buffer(client);
+
+    let len = buffered_client.len().await.unwrap();
+    assert_eq!(0, len);
+
+    buffered_client.set("foo1", "bar1".into()).await.unwrap();
+    buffered_client.set("foo2", "bar2".into()).await.unwrap();
+
+    let len = buffered_client.len().await.unwrap();
+    assert_eq!(2, len);
+}
+
 /// A delete test with single delete. Try to delete an existing and non
 /// existing key
 #[tokio::test]

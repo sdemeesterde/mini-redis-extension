@@ -3,8 +3,8 @@
 //! Provides an async connect and methods for issuing the supported commands.
 
 use crate::cmd::{
-    Del, Get, Ping, Publish, Sadd, Set, Sismember, Slength, Srem, Subscribe, Unsubscribe, Zadd,
-    Zrange, Zrank, Zrem, Zscore,
+    Del, Get, Len, Ping, Publish, Sadd, Set, Sismember, Slength, Srem, Subscribe, Unsubscribe,
+    Zadd, Zrange, Zrank, Zrem, Zscore,
 };
 use crate::{Connection, Frame};
 
@@ -313,6 +313,48 @@ impl Client {
         // Only Integer frame is accepted, telling how many keys were removed
         match self.read_response().await? {
             Frame::Integer(removed) => Ok(removed as usize),
+            frame => Err(frame.to_error()),
+        }
+    }
+
+    /// Delete the key-value pair(s).
+    ///
+    /// Return the number of key that were removed.
+    ///
+    /// # Examples
+    ///
+    /// Demonstrates basic usage.
+    ///
+    /// ```no_run
+    /// use miniredis::clients::Client;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let mut client = Client::connect("localhost:6379").await.unwrap();
+    ///
+    ///     client.set("foo1", "bar1".into()).await.unwrap();
+    ///     client.set("foo2", "bar2".into()).await.unwrap();
+    ///
+    ///     let len = client.len().await.unwrap();
+    ///     println!("Length: {:?}", len);
+    /// }
+    /// ```
+    #[instrument(skip(self))]
+    pub async fn len(&mut self) -> crate::Result<usize> {
+        let frame = Len.into_frame();
+
+        debug!(request = ?frame);
+
+        // Write the frame to the socket. This writes the full frame to the
+        // socket, waiting if necessary.
+        let resp_frame = frame.encode_resp()?;
+        self.connection.write_frame(resp_frame).await?;
+
+        // Wait for the response from the server
+        //
+        // Only Integer frame is accepted, telling the length of get/set underlying struct.
+        match self.read_response().await? {
+            Frame::Integer(len) => Ok(len as usize),
             frame => Err(frame.to_error()),
         }
     }

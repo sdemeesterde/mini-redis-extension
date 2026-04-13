@@ -16,6 +16,7 @@ enum Command {
     Set(String, Bytes, Option<Duration>),
     // keys
     Del(Vec<String>),
+    Len,
     // key, members
     Sadd(String, Vec<String>),
     // key, member
@@ -41,6 +42,7 @@ enum Response {
     Get(Result<Option<Bytes>>),
     Set(Result<()>),
     Del(Result<usize>),
+    Len(Result<usize>),
     Sadd(Result<usize>),
     Sismember(Result<usize>),
     Slength(Result<usize>),
@@ -79,6 +81,7 @@ async fn run(mut client: Client, mut rx: Receiver<Message>) {
                 }
             }
             Command::Del(keys) => Response::Del(client.del(keys).await),
+            Command::Len => Response::Len(client.len().await),
             Command::Sadd(key, members) => Response::Sadd(client.sadd(&key, members).await),
             Command::Sismember(key, member) => {
                 Response::Sismember(client.sismember(&key, &member).await)
@@ -222,6 +225,25 @@ impl BufferedClient {
         match rx.await {
             Ok(Response::Del(res)) => res,
             Ok(_) => Err("Wrong response type received for Del.".into()),
+            Err(err) => Err(err.into()),
+        }
+    }
+
+    /// Returns the length of the get/set underlying structure.
+    pub async fn len(&self) -> Result<usize> {
+        // Initialize a new `Len` command to send via the channel.
+        let len = Command::Len;
+
+        // Initialize a new oneshot to be used to receive the response back from the connection.
+        let (tx, rx) = oneshot::channel();
+
+        // Send the request
+        self.tx.send((len, tx)).await?;
+
+        // Await the response
+        match rx.await {
+            Ok(Response::Len(len)) => len,
+            Ok(_) => Err("Wrong responose type received for Len.".into()),
             Err(err) => Err(err.into()),
         }
     }

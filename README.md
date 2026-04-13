@@ -31,6 +31,7 @@ cargo run --bin miniredis-cli get foo
 * [GET](https://redis.io/commands/get)
 * [SET](https://redis.io/commands/set)
 * [DEL](https://redis.io/commands/del)
+* LEN: Unofficial redis command
 * [SADD](https://redis.io/docs/latest/commands/sadd)
 * [SISMEMBER](https://redis.io/docs/latest/commands/sismember)
 * SLENGTH: Unofficial redis command

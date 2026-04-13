@@ -56,6 +56,9 @@ enum Command {
         /// Name of the keys to remove
         keys: Vec<String>,
     },
+    /// Len
+    #[command(alias = "Len", alias = "LEN")]
+    Len,
     /// Add the members to set associated key
     #[command(alias = "Sadd", alias = "SADD")]
     Sadd {
@@ -229,6 +232,10 @@ async fn main() -> miniredis::Result<()> {
         Command::Del { keys } => {
             let removed = client.del(keys).await?;
             println!("(integer) {removed:?}");
+        }
+        Command::Len => {
+            let len = client.len().await?;
+            println!("(integer) {len:?}");
         }
         Command::Sadd { key, members } => {
             let added = client.sadd(&key, members).await?;

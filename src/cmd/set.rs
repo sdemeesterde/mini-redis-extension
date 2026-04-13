@@ -153,7 +153,7 @@ impl Set {
             // Expirations in Redis protocol can be specified in two ways
             // 1. SET key value EX seconds
             // 2. SET key value PX milliseconds
-            // We the second option because it allows greater precision and
+            // The second option was chosen because it allows greater precision and
             // src/bin/cli.rs parses the expiration argument as milliseconds
             // in duration_from_ms_str()
             frame.push_bulk(Bytes::from("px".as_bytes()));

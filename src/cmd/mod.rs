@@ -4,6 +4,12 @@ pub use del::Del;
 mod get;
 pub use get::Get;
 
+mod len;
+pub use len::Len;
+
+mod ping;
+pub use ping::Ping;
+
 mod publish;
 pub use publish::Publish;
 
@@ -12,9 +18,6 @@ pub use set::Set;
 
 mod subscribe;
 pub use subscribe::{Subscribe, Unsubscribe};
-
-mod ping;
-pub use ping::Ping;
 
 mod sadd;
 pub use sadd::Sadd;
@@ -53,10 +56,11 @@ use crate::{Connection, Db, Frame, Parse, ParseError, Shutdown};
 /// Methods called on `Command` are delegated to the command implementation.
 #[derive(Debug)]
 pub enum Command {
-    Del(Del),
-    Get(Get),
-    Publish(Publish),
     Set(Set),
+    Get(Get),
+    Del(Del),
+    Len(Len),
+    Publish(Publish),
     Subscribe(Subscribe),
     Unsubscribe(Unsubscribe),
     Ping(Ping),
@@ -99,8 +103,9 @@ impl Command {
         let command = match &command_name[..] {
             "del" => Command::Del(Del::parse_frames(&mut parse)?),
             "get" => Command::Get(Get::parse_frames(&mut parse)?),
-            "publish" => Command::Publish(Publish::parse_frames(&mut parse)?),
             "set" => Command::Set(Set::parse_frames(&mut parse)?),
+            "len" => Command::Len(Len::parse_frames()?),
+            "publish" => Command::Publish(Publish::parse_frames(&mut parse)?),
             "subscribe" => Command::Subscribe(Subscribe::parse_frames(&mut parse)?),
             "unsubscribe" => Command::Unsubscribe(Unsubscribe::parse_frames(&mut parse)?),
             "ping" => Command::Ping(Ping::parse_frames(&mut parse)?),
@@ -150,6 +155,7 @@ impl Command {
             Get(cmd) => cmd.apply(db, dst).await,
             Publish(cmd) => cmd.apply(db, dst).await,
             Set(cmd) => cmd.apply(db, dst).await,
+            Len(cmd) => cmd.apply(db, dst).await,
             Subscribe(cmd) => {
                 if let Some(dst) = dst {
                     cmd.apply(db, dst, shutdown).await
@@ -205,8 +211,9 @@ impl Command {
         match self {
             Command::Del(_) => "del",
             Command::Get(_) => "get",
-            Command::Publish(_) => "pub",
             Command::Set(_) => "set",
+            Command::Len(_) => "len",
+            Command::Publish(_) => "pub",
             Command::Subscribe(_) => "subscribe",
             Command::Unsubscribe(_) => "unsubscribe",
             Command::Ping(_) => "ping",

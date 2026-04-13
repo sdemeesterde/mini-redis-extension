@@ -297,6 +297,12 @@ impl Db {
         cnt
     }
 
+    /// Returns the length of self.entries
+    pub(crate) fn len(&self) -> u64 {
+        let state = self.shared.state.lock().unwrap();
+        state.entries.len() as u64
+    }
+
     /// Returns the number of newly added members
     ///
     /// Add the members the set stored at key.
