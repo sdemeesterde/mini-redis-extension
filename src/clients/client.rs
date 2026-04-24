@@ -4,7 +4,7 @@
 
 use crate::cmd::{
     Del, Get, Len, Ping, Publish, Sadd, Set, Sismember, Slength, Srem, Subscribe, Unsubscribe,
-    Zadd, Zrange, Zrank, Zrem, Zscore,
+    Zadd, Zlength, Zrange, Zrank, Zrem, Zscore,
 };
 use crate::{Connection, Frame};
 
@@ -401,7 +401,7 @@ impl Client {
         }
     }
 
-    /// Returns the length of member(s) associated key.
+    /// Returns the length of `S` set associated key.
     ///
     /// # Examples
     ///
@@ -415,6 +415,8 @@ impl Client {
     ///     let mut client = Client::connect("localhost:6379").await.unwrap();
     ///
     ///     let key = "key_test";
+    ///     let members = vec![String::from("player1"), String::from("player2")];
+    ///     let added = client.sadd(key, members).await.unwrap();
     ///
     ///     let length = client.slength(key).await.unwrap();
     ///     println!("Length: {:?}", length);
@@ -433,7 +435,7 @@ impl Client {
 
         // Wait for the response from the server
         //
-        // Integer, and Null frame are accepted, telling the length of the set of present
+        // Integer frame only, telling the length if the set if present, otherwise 0
         match self.read_response().await? {
             Frame::Integer(length) => Ok(length as usize),
             frame => Err(frame.to_error()),
@@ -523,6 +525,7 @@ impl Client {
     }
 
     /// Add entries (score-member) to the sorted set associated key.
+    /// If member is already present, its score is updated.
     ///
     /// Return the number of key that were added.
     ///
@@ -560,6 +563,48 @@ impl Client {
         // Only Integer frame is accepted, telling how many keys were added
         match self.read_response().await? {
             Frame::Integer(added) => Ok(added as usize),
+            frame => Err(frame.to_error()),
+        }
+    }
+
+    /// Returns the length of `Z` associated key struct.
+    ///
+    /// # Examples
+    ///
+    /// Demonstrates basic usage.
+    ///
+    /// ```no_run
+    /// use miniredis::clients::Client;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let mut client = Client::connect("localhost:6379").await.unwrap();
+    ///
+    ///     let key = "key_test";
+    ///
+    ///     let entries = vec![(10, String::from("player1")), (5, String::from("player2"))];
+    ///     let added = client.zadd(key, entries).await.unwrap();
+    ///
+    ///     let length = client.zlength(key).await.unwrap();
+    ///     println!("Length: {:?}", length);
+    /// }
+    /// ```
+    #[instrument(skip(self))]
+    pub async fn zlength(&mut self, key: &str) -> crate::Result<usize> {
+        let frame = Zlength::new(key.to_string()).into_frame();
+
+        debug!(request = ?frame);
+
+        // Write the frame to the socket. This writes the full frame to the
+        // socket, waiting if necessary.
+        let resp_frame = frame.encode_resp()?;
+        self.connection.write_frame(resp_frame).await?;
+
+        // Wait for the response from the server
+        //
+        // Integer frame only, telling the length of the set if present, otherwise 0
+        match self.read_response().await? {
+            Frame::Integer(length) => Ok(length as usize),
             frame => Err(frame.to_error()),
         }
     }
@@ -608,7 +653,7 @@ impl Client {
         }
     }
 
-    /// Get the range (score-member) where start >= score >= stop.
+    /// Get the range (score, member) where start >= score >= stop.
     ///
     /// Return the number of key that were added.
     ///

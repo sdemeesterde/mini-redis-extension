@@ -210,6 +210,38 @@ async fn zadd_zscore() {
     assert_eq!(None, score);
 }
 
+/// `Z`: Add score-member pairs and get length
+#[tokio::test]
+async fn zadd_zlength() {
+    let (addr, _) = start_server().await;
+
+    let mut client = Client::connect(addr).await.unwrap();
+    let key = "key";
+
+    let len = client.zlength(key).await.unwrap();
+    assert_eq!(0, len);
+
+    let entries = vec![(1, String::from("player1"))];
+
+    let added = client.zadd(key, entries.clone()).await.unwrap();
+    assert_eq!(1, added);
+
+    let len = client.zlength(key).await.unwrap();
+    assert_eq!(1, len);
+
+    let entries = vec![
+        (1, String::from("player1")),
+        (5, String::from("player2")),
+        (10, String::from("player3")),
+    ];
+
+    let added = client.zadd(key, entries.clone()).await.unwrap();
+    assert_eq!(2, added);
+
+    let len = client.zlength(key).await.unwrap();
+    assert_eq!(3, len);
+}
+
 /// `Z`: Add and retrieve a score-member pair to a single key associated sorted set
 #[tokio::test]
 async fn zadd_zrange_one_value() {
@@ -450,11 +482,11 @@ async fn unsubscribes_from_channels() {
 async fn start_server() -> (SocketAddr, JoinHandle<()>) {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
-    let appendonly_aof = "appendonly_test.aof";
+    let aof_filename = Some("appendonly_test.aof".to_string());
     let warmup = None;
 
     let handle = tokio::spawn(async move {
-        server::run(listener, tokio::signal::ctrl_c(), appendonly_aof, warmup).await
+        server::run(listener, tokio::signal::ctrl_c(), aof_filename, warmup).await
     });
 
     (addr, handle)

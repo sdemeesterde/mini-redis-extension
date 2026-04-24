@@ -34,6 +34,9 @@ pub use srem::Srem;
 mod zadd;
 pub use zadd::Zadd;
 
+mod zlength;
+pub use zlength::Zlength;
+
 mod zscore;
 pub use zscore::Zscore;
 
@@ -70,6 +73,7 @@ pub enum Command {
     Srem(Srem),
     Zadd(Zadd),
     Zscore(Zscore),
+    Zlength(Zlength),
     Zrange(Zrange),
     Zrank(Zrank),
     Zrem(Zrem),
@@ -114,6 +118,7 @@ impl Command {
             "slength" => Command::Slength(Slength::parse_frames(&mut parse)?),
             "srem" => Command::Srem(Srem::parse_frames(&mut parse)?),
             "zadd" => Command::Zadd(Zadd::parse_frames(&mut parse)?),
+            "zlength" => Command::Zlength(Zlength::parse_frames(&mut parse)?),
             "zscore" => Command::Zscore(Zscore::parse_frames(&mut parse)?),
             "zrange" => Command::Zrange(Zrange::parse_frames(&mut parse)?),
             "zrank" => Command::Zrank(Zrank::parse_frames(&mut parse)?),
@@ -182,6 +187,7 @@ impl Command {
             Slength(cmd) => cmd.apply(db, dst).await,
             Srem(cmd) => cmd.apply(db, dst).await,
             Zadd(cmd) => cmd.apply(db, dst).await,
+            Zlength(cmd) => cmd.apply(db, dst).await,
             Zscore(cmd) => cmd.apply(db, dst).await,
             Zrange(cmd) => cmd.apply(db, dst).await,
             Zrank(cmd) => cmd.apply(db, dst).await,
@@ -222,6 +228,7 @@ impl Command {
             Command::Slength(_) => "slength",
             Command::Srem(_) => "srem",
             Command::Zadd(_) => "zadd",
+            Command::Zlength(_) => "zlength",
             Command::Zscore(_) => "zscore",
             Command::Zrange(_) => "zrange",
             Command::Zrank(_) => "zrank",

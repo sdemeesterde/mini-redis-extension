@@ -487,7 +487,7 @@ async fn send_error_get_set_after_subscribe() {
 async fn start_server() -> SocketAddr {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
-    let aof_filename = "appendonly_test.aof";
+    let aof_filename = Some("appendonly_test.aof".to_string());
     let warmup = None;
 
     tokio::spawn(async move {

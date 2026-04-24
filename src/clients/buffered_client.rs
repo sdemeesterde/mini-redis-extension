@@ -27,6 +27,8 @@ enum Command {
     Srem(String, Vec<String>),
     // key, (score, member)
     Zadd(String, Vec<(u64, String)>),
+    // key
+    Zlength(String),
     // key, member
     Zscore(String, String),
     // key, start, stop, rev, offset, count
@@ -48,6 +50,7 @@ enum Response {
     Slength(Result<usize>),
     Srem(Result<usize>),
     Zadd(Result<usize>),
+    Zlength(Result<usize>),
     Zscore(Result<Option<usize>>),
     Zrange(Result<Vec<(u64, String)>>),
     Zrank(Result<Option<usize>>),
@@ -89,6 +92,7 @@ async fn run(mut client: Client, mut rx: Receiver<Message>) {
             Command::Slength(key) => Response::Slength(client.slength(&key).await),
             Command::Srem(key, members) => Response::Srem(client.srem(&key, members).await),
             Command::Zadd(key, entries) => Response::Zadd(client.zadd(&key, entries).await),
+            Command::Zlength(key) => Response::Zlength(client.zlength(&key).await),
             Command::Zscore(key, member) => Response::Zscore(client.zscore(&key, &member).await),
             Command::Zrange(key, start, stop, rev, offset, count) => {
                 Response::Zrange(client.zrange(&key, start, stop, rev, offset, count).await)
@@ -130,9 +134,10 @@ impl BufferedClient {
     /// The returned `BufferedClient` handle may be cloned before passing the new handle to
     /// separate tasks.
     pub fn buffer(client: Client) -> BufferedClient {
-        // Setting the message limit to a hard coded value of 32. in a real-app, the
-        // buffer size should be configurable, but we don't need to do that here.
-        let (tx, rx) = channel(32);
+        // Setting the message limit to a hard coded value of 64. In a real-app, the
+        // buffer size should be configurable. For the Typing game example,
+        // this works just fine.
+        let (tx, rx) = channel(64);
 
         // Spawn a task to process requests for the connection.
         tokio::spawn(async move { run(client, rx).await });
@@ -292,7 +297,7 @@ impl BufferedClient {
         }
     }
 
-    /// Returns the length of `key` associated `S` structure.
+    /// Returns the length of given `key` associated `S` structure.
     ///
     /// Same as `Client::slength` but requests are **buffered** until the associated
     /// connection has the ability to send the request.
@@ -354,6 +359,28 @@ impl BufferedClient {
         match rx.await {
             Ok(Response::Zadd(res)) => res,
             Ok(_) => Err("Wrong response type received for Zadd.".into()),
+            Err(err) => Err(err.into()),
+        }
+    }
+
+    /// Returns the length of given `key` associated `Z` structure.
+    ///
+    /// Same as `Client::zlength` but requests are **buffered** until the associated
+    /// connection has the ability to send the request.
+    pub async fn zlength(&self, key: &str) -> Result<usize> {
+        // Initialize a new `Zlength` command to send via the channel.
+        let zlength = Command::Zlength(key.into());
+
+        // Initialize a new oneshot to be used to receive the response back from the connection.
+        let (tx, rx) = oneshot::channel();
+
+        // Send the request
+        self.tx.send((zlength, tx)).await?;
+
+        // Await the response
+        match rx.await {
+            Ok(Response::Zlength(res)) => res,
+            Ok(_) => Err("Wrong response type received for Zlength.".into()),
             Err(err) => Err(err.into()),
         }
     }

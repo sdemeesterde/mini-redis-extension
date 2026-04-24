@@ -6,7 +6,7 @@
 //!
 //! The `clap` crate is used for parsing arguments.
 
-use miniredis::{AOF_FILENAME, DEFAULT_PORT, server};
+use miniredis::{DEFAULT_PORT, server};
 
 use clap::Parser;
 use tokio::net::TcpListener;
@@ -35,13 +35,13 @@ pub async fn main() -> miniredis::Result<()> {
     let cli = Cli::parse();
 
     let port = cli.port.unwrap_or(DEFAULT_PORT);
-    let aof_filename = cli.aof_filename.unwrap_or(AOF_FILENAME.to_string());
+    let aof_filename = cli.aof_filename;
     let warmup = cli.warmup;
 
     // Bind a TCP listener
     let listener = TcpListener::bind(&format!("127.0.0.1:{}", port)).await?;
 
-    server::run(listener, signal::ctrl_c(), &aof_filename, warmup).await;
+    server::run(listener, signal::ctrl_c(), aof_filename, warmup).await;
 
     Ok(())
 }

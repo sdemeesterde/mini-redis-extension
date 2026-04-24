@@ -77,13 +77,13 @@ enum Command {
         /// Member to check whether is contained
         member: String,
     },
-    /// Returns the number of member(s) associated key
+    /// Returns the number of member(s) associated with given key
     #[command(alias = "Slength", alias = "SLENGTH")]
     Slength {
         /// Name of the key
         key: String,
     },
-    /// Remove member(s) from the set associated key
+    /// Remove member(s) from the set associated with given key
     #[command(alias = "Srem", alias = "SREM")]
     Srem {
         /// Name of the key
@@ -102,6 +102,12 @@ enum Command {
         /// Entries (pair of score-member)
         /// Clap only supports flat list, it sees: ["10", "foo", "20", "bar"]
         entries: Vec<String>,
+    },
+    /// Returns the length of (member-score) set associated with given key
+    #[command(alias = "Zlength", alias = "ZLENGTH")]
+    Zlength {
+        /// Name of the key
+        key: String,
     },
     /// Get the score of the key associated member
     #[command(alias = "Zscore", alias = "ZSCORE")]
@@ -262,6 +268,10 @@ async fn main() -> miniredis::Result<()> {
             }
             let added = client.zadd(&key, pairs).await?;
             println!("(integer) {added:?}");
+        }
+        Command::Zlength { key } => {
+            let length = client.zlength(&key).await?;
+            println!("(integer) {length:?}");
         }
         Command::Zscore { key, member } => {
             let score = client.zscore(&key, &member).await?;

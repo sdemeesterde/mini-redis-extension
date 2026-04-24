@@ -58,7 +58,7 @@ use shutdown::Shutdown;
 pub const DEFAULT_PORT: u16 = 6379;
 
 /// The file to which write operations to the database are written to.
-pub const AOF_FILENAME: &str = "appendonly.aof";
+// pub const AOF_FILENAME: &str = "appendonly.aof";
 
 /// Error returned by most functions.
 ///

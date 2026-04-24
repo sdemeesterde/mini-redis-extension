@@ -9,7 +9,7 @@ use crate::{Aof, AofWriter, Command, Connection, Db, DbDropGuard, Shutdown};
 use std::future::Future;
 use std::sync::Arc;
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::{broadcast, mpsc, Semaphore};
+use tokio::sync::{Semaphore, broadcast, mpsc};
 use tokio::time::{self, Duration};
 use tracing::{debug, error, info, instrument};
 
@@ -32,7 +32,7 @@ struct Listener {
     /// record their write operations to the AOF buffer.
     ///
     /// A simple call the factory fork will instantiate a clone `aof_writer`.
-    aof_writer_factory: AofWriterFactory,
+    aof_writer_factory: Option<AofWriterFactory>,
 
     /// TCP listener supplied by the `run` caller.
     listener: TcpListener,
@@ -97,7 +97,7 @@ struct Handler {
     /// Every write command (e.g. modifies the redis database) received by the
     /// connection is written to the aof buffer using the per connection clone
     /// `aof_writer`.
-    aof_writer: AofWriter,
+    aof_writer: Option<AofWriter>,
 
     /// Listen for shutdown notifications.
     ///
@@ -119,12 +119,7 @@ struct Handler {
 /// an active connection terminates.
 ///
 /// A real application will want to make this value configurable, but for this
-/// example, it is hard coded.
-///
-/// This is also set to a pretty low value to discourage using this in
-/// production (you'd think that all the disclaimers would make it obvious that
-/// this is not a serious project... but I thought that about mini-http as
-/// well).
+/// example, it is hard coded. For the Typing game example, this works just fine.
 const MAX_CONNECTIONS: usize = 250;
 
 /// Run the miniredis server.
@@ -139,7 +134,7 @@ const MAX_CONNECTIONS: usize = 250;
 pub async fn run(
     listener: TcpListener,
     shutdown: impl Future,
-    aof_filename: &str,
+    aof_filename: Option<String>,
     warmup: Option<String>,
 ) {
     // When the provided `shutdown` future completes, we must send a shutdown
@@ -150,20 +145,26 @@ pub async fn run(
     let (notify_shutdown, _) = broadcast::channel(1);
     let (shutdown_complete_tx, mut shutdown_complete_rx) = mpsc::channel(1);
 
-    let mut aof = Aof::new(aof_filename.to_string()).await.unwrap();
+    let aof_writer_factory = match aof_filename {
+        Some(filename) => {
+            let mut aof = Aof::new(filename.to_string()).await.unwrap();
+            let r = Some(AofWriterFactory::new(&aof));
+            // Background thread responsible for writing the commands store on the buffer
+            // to the aof file.
+            tokio::spawn(async move { aof.run().await });
+            r
+        }
+        None => None,
+    };
 
     let mut server = Listener {
         listener,
+        aof_writer_factory,
         db_holder: DbDropGuard::new(),
         limit_connections: Arc::new(Semaphore::new(MAX_CONNECTIONS)),
-        aof_writer_factory: AofWriterFactory::new(&aof),
         notify_shutdown,
         shutdown_complete_tx,
     };
-
-    // Background thread responsible for writing the commands store on the buffer
-    // to the aof file.
-    tokio::spawn(async move { aof.run().await });
 
     // Concurrently run the server and listen for the `shutdown` signal. The
     // server task runs until an error is encountered, so under normal
@@ -286,7 +287,7 @@ impl Listener {
                 connection: Connection::new(socket),
 
                 // Sender end clone instance giving access to the aof buffer
-                aof_writer: self.aof_writer_factory.fork(),
+                aof_writer: self.aof_writer_factory.as_mut().map(|aof| aof.fork()),
 
                 // Receive shutdown notifications.
                 shutdown: Shutdown::new(self.notify_shutdown.subscribe()),
@@ -397,12 +398,14 @@ impl Handler {
             // as key-value pairs.
             debug!(?cmd);
 
-            // If the command modifies the db, writes the frames to
+            // If the command modifies the db, it is a candidate frame to
             // Append-Only-File buffer
             if cmd.is_write_command() {
-                info!("Command modifying the db.");
                 let resp_frame = frame.encode_resp()?;
-                self.aof_writer.write_to_buffer(resp_frame).await?;
+                // Only actually write the AOF file if an AOF has been provided.
+                if let Some(aof) = self.aof_writer.as_mut() {
+                    aof.write_to_buffer(resp_frame).await?;
+                }
             }
 
             // Perform the work needed to apply the command. This may mutate the

@@ -322,7 +322,6 @@ impl Db {
     }
 
     /// Returns the length of "S" key associated structure,
-    /// i.e., the number of member(s) associated to given key
     pub(crate) fn slength(&self, key: &str) -> u64 {
         let state = self.shared.state.lock().unwrap();
 
@@ -398,6 +397,15 @@ impl Db {
             cnt += 1;
         }
         cnt as u64
+    }
+
+    /// Returns the length of "Z" key associated structure
+    pub(crate) fn zlength(&self, key: &str) -> u64 {
+        let state = self.shared.state.lock().unwrap();
+
+        let Z { ref skiplists, .. } = state.z;
+
+        skiplists.get(key).map(|s| s.len() as u64).unwrap_or(0)
     }
 
     /// Returns the score of member associated key z struct.
