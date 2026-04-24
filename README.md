@@ -76,10 +76,6 @@ cargo run --bin miniredis-cli get foo
 
 ---
 
-Here’s a clearer way to highlight what *you* added without making it awkward to read:
-
----
-
 ## Supported commands
 
 Commands marked with `*` are **newly added in this project**.
