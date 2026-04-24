@@ -1,53 +1,150 @@
-# miniredis extension
+# mini-redis extension
 
-This project implements several extension features to the
-very good [Mini redis](https://github.com/tokio-rs/mini-redis) project.
+This project extends the very good [mini-redis](https://github.com/tokio-rs/mini-redis) project with additional features (commands, AOF, etc.).
 
-## Next steps
+---
 
-- Potential next steps:
-  - Make a comparison with sqlite latency ?
-  - LRU expiration policy or.. when memory max is reached ?
+## Getting started
 
-## Explanation on redis protocol
+First, run the server:
 
-Terminal 1 (without using the cli):
+```bash
+cargo run --bin miniredis-server
 ```
-  printf '*3\r\n+set\r\n+foo\r\n+bar\r\n' | nc localhost 6379
+
+You can run it either from code or directly via the CLI like above.
+
+---
+
+## Usage
+
+### Client
+
+Basic example:
+
+```rust
+use miniredis::clients::Client;
+
+#[tokio::main]
+async fn main() {
+    let mut client = Client::connect("localhost:6379").await.unwrap();
+
+    let pong = client.ping(None).await.unwrap();
+    assert_eq!(b"PONG", &pong[..]);
+}
 ```
-Terminal 2 (using the cli):
+
+---
+
+### Stream (raw RESP)
+
+With the server running, you can send commands using the Redis [RESP protocol](https://redis.io/docs/latest/develop/reference/protocol-spec):
+
+```bash
+printf '*3\r\n+set\r\n+foo\r\n+bar\r\n' | nc localhost 6379
 ```
+
+---
+
+### Buffered client approach
+
+Using `BufferedClient` avoids issues in async contexts (like interleaved frames):
+
+```rust
+use miniredis::clients::{BufferedClient, Client};
+
+#[tokio::main]
+async fn main() {
+    let mut client = Client::connect("localhost:6379").await.unwrap();
+    let buffered_client = BufferedClient::buffer(client);
+
+    let pong = buffered_client.ping(None).await.unwrap();
+    assert_eq!(b"PONG", &pong[..]);
+}
+```
+
+---
+
+### CLI
+
+You can also interact via the CLI:
+
+```bash
 cargo run --bin miniredis-cli get foo
 "bar"
 ```
-## Demo - A simple game
 
-- Show number of active connections
-- Show ranking of players
+---
+
+Here’s a clearer way to highlight what *you* added without making it awkward to read:
+
+---
 
 ## Supported commands
 
-* [PING](https://redis.io/commands/ping)
-* [GET](https://redis.io/commands/get)
-* [SET](https://redis.io/commands/set)
-* [DEL](https://redis.io/commands/del)
-* LEN: Unofficial redis command
-* [SADD](https://redis.io/docs/latest/commands/sadd)
-* [SISMEMBER](https://redis.io/docs/latest/commands/sismember)
-* SLENGTH: Unofficial redis command
-* [SREM](https://redis.io/docs/latest/commands/srem)
-* [ZADD](https://redis.io/commands/zadd)
-* [ZRANGE](https://redis.io/commands/zrange)
-* [ZRANK](https://redis.io/docs/latest/commands/zrank) With different optional parameters.
-* [ZREM](https://redis.io/docs/latest/commands/zrem)
-* [ZSCORE](https://redis.io/docs/latest/commands/zscore)
-* [PUBLISH](https://redis.io/commands/publish)
-* [SUBSCRIBE](https://redis.io/commands/subscribe)
+Commands marked with `*` are **newly added in this project**.
 
-The Redis wire protocol specification can be found
-[here](https://redis.io/topics/protocol).
+### Core
 
-There is no support for persistence yet.
+* PING
+* GET
+* SET
+* DEL *
+
+---
+
+### Sets
+
+* SADD *
+* SISMEMBER *
+* SREM *
+* SLENGTH * *(unofficial)*
+
+---
+
+### Sorted sets
+
+* ZADD *
+* ZRANGE *
+* ZREM *
+* ZSCORE *
+* ZLENGTH * *(unofficial)*
+
+---
+
+### Pub/Sub
+
+* PUBLISH
+* SUBSCRIBE
+
+---
+
+Full Redis protocol spec:
+[https://redis.io/topics/protocol](https://redis.io/topics/protocol)
+
+---
+
+## AOF (Append-Only File)
+
+Strategy: message passing.
+
+* A single async task collects frames
+* Flushes them in batches every second
+* Reduces I/O calls
+
+Simple approach, but good enough for this use case.
+
+---
+
+## Tests
+
+The project includes tests for:
+
+* client
+* buffered client
+* server (stream / RESP)
+
+---
 
 ## License
 
